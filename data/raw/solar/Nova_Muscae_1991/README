@@ -1,0 +1,20 @@
+https://ui.adsabs.harvard.edu/abs/2016ApJ...825...45C/abstract
+The MC simulations computed for 3000 parameter sets and for two values of the viscosity parameter
+
+1. Naming Rules
+
+
+(1)samples0518_3_001.npy
+
+
+0518_3 represents that this is the third spectrum observed in 05.13
+001 represents that the viscosity of this spectrum is alpha=0.01
+
+(2)samples0402.npy
+
+0402 represents that this is the spectrum observed in 04.02
+Besides, the viscosity of this spectrum is alpha=0.1
+
+2. Each parameters in the file represents, in turn:
+     dis    mass    incl      nh   Gamma    Frac    spin     Mdd
+
