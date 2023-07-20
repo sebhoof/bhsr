@@ -6,6 +6,7 @@ import numpy as np
 
 from math import factorial, prod
 from fractions import Fraction
+from superrad import ultralight_boson as ub
 from .constants import mP_in_GeV, inv_eVs, yr_in_s
 from .kerr_bh import *
 
@@ -100,3 +101,12 @@ def is_sr_mode_min(mu, min_sr_rate, mbh, tbh):
     nm = n_max(mbh)
     inv_t = inv_eVs / (yr_in_s*tbh)
     return min_sr_rate > inv_t*np.log(nm)
+
+## BHSR rates from superrad
+bc0 = ub.UltralightBoson(spin=0, model="relativistic")
+def GammaSR_nlm_superrad(mu, mbh, astar, bc=bc0):
+   try:
+      wf = bc.make_waveform(mbh, astar, mu, units="physical")
+      return 2.0*np.pi*inv_eVs/wf.cloud_growth_time()
+   except ValueError:
+      return 0
