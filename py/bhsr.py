@@ -2,12 +2,14 @@
 #  BHSR rates #
 ###############
 
+import warnings
 import numpy as np
 
 from math import factorial, prod
 from fractions import Fraction
+from scipy.optimize import root_scalar
 from superrad import ultralight_boson as ub
-from .constants import mP_in_GeV, inv_eVs, yr_in_s
+from .constants import inv_tSR, mP_in_GeV, inv_eVs, yr_in_s
 from .kerr_bh import *
 
 # BHSR rates using Dettweiler's approx
@@ -110,3 +112,32 @@ def GammaSR_nlm_superrad(mu, mbh, astar, bc=bc0):
       return 2.0*np.pi*inv_eVs/wf.cloud_growth_time()
    except ValueError:
       return 0
+   
+
+## Regge slope
+def compute_regge_slopes(mu, mbh_vals, states, inv_tSR=inv_tSR):
+    a_min_vals = []
+    foo = lambda a, mbh, n, l, m: GammaSR_nlm_mod(mu, mbh, a, n, l, m) - inv_tSR
+    for mbh in mbh_vals:
+        temp = []
+        for s in states:
+            with warnings.catch_warnings(record=True) as w:
+                res = root_scalar(foo, x0=0, x1=0.5, args=(mbh, *s))
+                a_root = res.root if len(w) == 0 else np.nan
+                temp.append(a_root)
+        a_min_vals.append(temp)
+    return np.array(a_min_vals)
+
+
+def compute_regge_slopes_given_rate(mu, mbh_vals, sr_function, inv_tSR=inv_tSR):
+    a_min_vals = []
+    foo = lambda a, mbh: sr_function(mu, mbh, a) - inv_tSR
+    for mbh in mbh_vals:
+        with warnings.catch_warnings(record=True) as w:
+            try:
+                res = root_scalar(foo, bracket=[0.01, 0.99], args=(mbh))
+                a_root = res.root if len(w) == 0 else np.nan
+            except ValueError:
+                a_root = np.nan
+        a_min_vals.append(a_root)
+    return np.array(a_min_vals)
