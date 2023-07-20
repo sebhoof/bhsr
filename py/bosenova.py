@@ -7,10 +7,6 @@ import numpy as np
 from .constants import *
 from .bhsr import *
 
-def n_max(mbh):
-    da0 = 0.1
-    return 1e76 * (da0/0.1) * (mbh/10)**2
-
 def n_bose(mu, invf, mbh, n=2):
     c0 = 5
     f = 1.0/invf
@@ -41,16 +37,3 @@ def not_bosenova_is_problem_min(mu, min_sr_rate, invf, mbh, tbh, n):
     inv_t = inv_eVs / (yr_in_s*tbh)
     res = min_sr_rate > inv_t*np.log(nb)*(nm/nb)
     return res
-
-def is_sr_mode(mu, mbh, astar, tbh, n, l, m):
-    nm = n_max(mbh)
-    inv_t = inv_eVs / (yr_in_s*tbh)
-    res = GammaSR_nlm_mod(mu, mbh, astar, n, l, m) > inv_t*np.log(nm)
-    if np.isnan(res):
-        res = 0
-    return res
-
-def is_sr_mode_min(mu, min_sr_rate, mbh, tbh):
-    nm = n_max(mbh)
-    inv_t = inv_eVs / (yr_in_s*tbh)
-    return min_sr_rate > inv_t*np.log(nm)
