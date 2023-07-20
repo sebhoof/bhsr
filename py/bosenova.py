@@ -1,26 +1,58 @@
-#######################
-#  Bosenova functions #
-#######################
+###############################
+#  Bosenova-related functions #
+###############################
 
 import numpy as np
 
 from .constants import *
 from .bhsr import *
 
-def n_bose(mu, invf, mbh, n=2):
-    c0 = 5
-    f = 1.0/invf
-    alph = alpha(mu, mbh)
-    return 1e78*c0* n**4 * (mbh/10)**2 * (f*1e9/mPred_in_eV)**2 / alph**3
+# Constant obtained from numerical simulations for computing n_bose()
+# Ref.: https://arxiv.org/pdf/1411.2263.pdf
+c0_n_bose = 5.0
 
-def bosenova_f0(mu, mbh, n=2):
-    c0 = 5
+def n_bose(mu: float, invf: float, mbh: float, n: int = 2) -> float:
+    """
+    Calculates the number of bosons in a black hole superradiant cloud that triggers a bosenova.
+
+    Parameters:
+        mu (float): Boson mass in eV.
+        invf (float): Inverse of the boson decay constant in GeV^-1.
+        mbh (float): Black hole mass in Msol.
+        n (int, optional): Principal quantum number (default: 2).
+
+    Returns:
+        float: Number of bosons in the superradiant cloud.
+
+    Notes:
+        - Ref.: Eq. (9) in https://arxiv.org/pdf/1411.2263.pdf
+    """
+    alph = alpha(mu, mbh)
+    x = n*n*(mbh/10)*1.0/(invf*mPred_in_GeV)
+    return 1e78*c0_n_bose*x*x/alph**3
+
+def bosenova_fcrit(mu: float, mbh: float, n: int = 2) -> float:
+    """
+    Calculates the critical boson decay constant at which a bosenova in a black hole superradiant cloud
+    is expected to happen before (most of the) black hole spin has been depleted.
+
+    Parameters:
+        mu (float): Boson mass in eV.
+        mbh (float): Black hole mass in Msol.
+        n (int, optional): Principal quantum number (default: 2).
+
+    Returns:
+        float: Critical boson decay constant in GeV.
+
+    Notes:
+        - Computed by equating n_bose() with n_max(da = 0.1)
+    """
     da0 = 0.1
-    f0 = 2e16 * (alpha(mu, mbh)/(0.4*n))**(3.0/2.0) * np.sqrt(da0/0.1) * np.sqrt(5/c0) / np.sqrt(n)
+    f0 = 2e16 * pow(alpha(mu, mbh)/(0.4*n), 1.5) * np.sqrt( (da0/0.1) * (5.0/c0_n_bose) / n )
     return f0
 
-def bosenova_check_old(invf, mu, mbh, n=2):
-    return 1.0/invf > bosenova_f0(mu, mbh, n)
+#def bosenova_check_old(invf, mu, mbh, n=2):
+#    return 1.0/invf > bosenova_f0(mu, mbh, n)
 
 def not_bosenova_is_problem(mu, invf, mbh, a, tbh, n, l, m):
     nm = n_max(mbh)

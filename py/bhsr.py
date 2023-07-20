@@ -81,8 +81,8 @@ def GammaSR_nlm(mu: float, mbh: float, astar: float, n: int, l: int, m: int) -> 
     Notes:
         - This formula uses (the corrected?) Dettweiler approximation.
         - We use $n \equiv \bar{n} = n - l - 1$.
-        - Refs.: Eqs. 5, 13, 14, 15 in https://arxiv.org/pdf/2009.07206.pdf, https://arxiv.org/pdf/1501.06570.pdf, https://arxiv.org/pdf/1411.2263.pdf
-        - Differences to Eq. 14 in https://arxiv.org/pdf/1805.02016.pdf
+        - Refs.: Eqs. (5), (13-15) in https://arxiv.org/pdf/2009.07206.pdf; also https://arxiv.org/pdf/1501.06570.pdf, https://arxiv.org/pdf/1411.2263.pdf
+        - Differences to Eq. (14) in https://arxiv.org/pdf/1805.02016.pdf
     """
     al = alpha(mu, mbh)
     marp = al*(1 + np.sqrt(1-astar*astar))
@@ -194,14 +194,26 @@ def GammaSR_nlm_eq(ma, mbh, astar, fa):
     neq = n_eq_211(ma, mbh, astar, fa)
     return neq*sr0
 
-def n_max(mbh):
-    da0 = 0.1
-    return 1e76 * (da0/0.1) * (mbh/10)**2
+def n_max(mbh: float, da: float = 0.1) -> float:
+    """
+    Calculate the maximum value of the boson occupation number of the superradiant cloud.
+
+    Parameters:
+        mbh (float): Black hole mass in Msol.
+        da (float, optional): Difference of dimensionless initial and final spin (default: 0.1).
+
+    Returns:
+        float: The maximum value of the boson occupation number.
+
+    Notes:
+        - Ref. Eq. (8) in https://arxiv.org/pdf/1411.2263.pdf
+    """
+    return 1e76 * (da/0.1) * (mbh/10)**2
 
 def is_sr_mode(mu, mbh, astar, tbh, n, l, m):
     nm = n_max(mbh)
     inv_t = inv_eVs / (yr_in_s*tbh)
-    res = GammaSR_nlm_mod(mu, mbh, astar, n, l, m) > inv_t*np.log(nm)
+    res = GammaSR_nlm(mu, mbh, astar, n, l, m) > inv_t*np.log(nm)
     if np.isnan(res):
         res = 0
     return res
@@ -211,11 +223,27 @@ def is_sr_mode_min(mu, min_sr_rate, mbh, tbh):
     inv_t = inv_eVs / (yr_in_s*tbh)
     return min_sr_rate > inv_t*np.log(nm)
    
-
 ## Regge slope
-def compute_regge_slopes(mu, mbh_vals, states, inv_tSR=inv_tSR):
+
+def compute_regge_slopes(mu: float, mbh_vals: list[float], states: list[tuple[int, int, int]], inv_tSR: float = inv_tSR) -> np.ndarray:
+    """
+    Compute the Regge slopes/curves for specific quantum states.
+
+    Parameters:
+        mu (float): Boson mass in eV.
+        mbh_vals (list[float]): List of black hole masses in Msol.
+        states (list[tuple[int, int, int]]): List of quantum states (n, l, m).
+        inv_tSR (float, optional): Inverse of the superradiance timescale (default: inv_tSR).
+
+    Returns:
+        np.ndarray: Array of dimensionless black hole spins corresponding to mbh_vals.
+
+    Notes:
+        - The Regge slope is defined as the minimum value of the dimensionless spin parameter 'a' at which the superradiance rate equals the inverse of the superradiance timescale.
+        - Note that the root finding may fail if no Regge slope exists. In this case, we set the corresponding BH spin value = NAN.
+    """
     a_min_vals = []
-    foo = lambda a, mbh, n, l, m: GammaSR_nlm_mod(mu, mbh, a, n, l, m) - inv_tSR
+    foo = lambda a, mbh, n, l, m: GammaSR_nlm(mu, mbh, a, n, l, m) - inv_tSR
     for mbh in mbh_vals:
         temp = []
         for s in states:
@@ -227,7 +255,24 @@ def compute_regge_slopes(mu, mbh_vals, states, inv_tSR=inv_tSR):
     return np.array(a_min_vals)
 
 
-def compute_regge_slopes_given_rate(mu, mbh_vals, sr_function, inv_tSR=inv_tSR):
+def compute_regge_slopes_given_rate(mu: float, mbh_vals: list[float], sr_function: callable, inv_tSR: float = inv_tSR) -> np.ndarray:
+    """
+    Compute the Regge slopes given a superradiance rate function.
+
+    Parameters:
+        mu (float): Boson mass in eV.
+        mbh_vals (list[float]): List of black hole masses in Msol.
+        sr_function (callable): Superradiance rate function with signature sr_function(mu, mbh, astar)
+        inv_tSR (float, optional): Inverse of the superradiance timescale (default: inv_tSR).
+
+    Returns:
+        np.ndarray: Array of Regge slopes.
+
+    Notes:
+        - The Regge slope is defined as the minimum value of the dimensionless spin parameter 'a' at which the superradiance rate equals the inverse of the superradiance timescale.
+        - Note that the root finding may fail if no Regge slope exists, or the user-defined function may produce an error, e.g. because of large spins or difficult BH masses.
+          In any such case, we set the corresponding BH spin value = NAN.
+    """
     a_min_vals = []
     foo = lambda a, mbh: sr_function(mu, mbh, a) - inv_tSR
     for mbh in mbh_vals:
