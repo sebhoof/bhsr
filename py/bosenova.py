@@ -26,7 +26,7 @@ def not_bosenova_is_problem(mu, invf, mbh, a, tbh, n, l, m):
     nm = n_max(mbh)
     nb = n_bose(mu, invf, mbh, n)
     inv_t = inv_eVs / (yr_in_s*tbh)
-    res = GammaSR_nlm_mod(mu, mbh, a, n, l, m) > inv_t*np.log(nb)*(nm/nb)
+    res = GammaSR_nlm(mu, mbh, a, n, l, m) > inv_t*np.log(nb)*(nm/nb)
     if np.isnan(res):
         res = 0
     return res
