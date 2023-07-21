@@ -9,7 +9,7 @@ from math import factorial, prod
 from fractions import Fraction
 from scipy.optimize import root_scalar
 from superrad.ultralight_boson import UltralightBoson
-from .constants import inv_tSR, mP_in_GeV, inv_eVs, yr_in_s
+from .constants import *
 from .kerr_bh import *
 
 ## BHSR rates using Dettweiler's approximation
@@ -63,7 +63,7 @@ def c_nl_float(n: int, l: int) -> float:
     c_nl_fr = c_nl(n, l)
     return 1.0*c_nl_fr
 
-def GammaSR_nlm(mu: float, mbh: float, astar: float, n: int, l: int, m: int) -> float:
+def GammaSR_nlm(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, m: int = 1) -> float:
     """
     Calculate the superradiance rate for a bosonic cloud around a Kerr black hole.
 
@@ -122,7 +122,7 @@ def c_nl_nr_float(n: int, l: int) -> float:
     c_nl_fr = c_nl_nr(n, l)
     return 1.0*c_nl_fr
 
-def GammaSR_nlm_nr(mu: float, mbh: float, astar: float, n: int, l: int, m: int) -> float:
+def GammaSR_nlm_nr(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, m: int = 1) -> float:
     """
     Calculate the superradiance rate for a bosonic cloud around a Kerr black hole,
     using the "non-realtivisic approximation."
@@ -254,7 +254,6 @@ def compute_regge_slopes(mu: float, mbh_vals: list[float], states: list[tuple[in
         a_min_vals.append(temp)
     return np.array(a_min_vals)
 
-
 def compute_regge_slopes_given_rate(mu: float, mbh_vals: list[float], sr_function: callable, inv_tSR: float = inv_tSR) -> np.ndarray:
     """
     Compute the Regge slopes given a superradiance rate function.
@@ -284,3 +283,24 @@ def compute_regge_slopes_given_rate(mu: float, mbh_vals: list[float], sr_functio
                 a_root = np.nan
         a_min_vals.append(a_root)
     return np.array(a_min_vals)
+
+def is_box_allowed_211(mu: float, invf: float, bh_data: list[int, ...], sr_function: callable, sigma_level: float = 2):
+    _, tbh, mbh, mbh_err, a, _, a_err_m = bh_data
+    # Coservative approach by choosing the shortest BH time scale
+    tbh = min(tEddington_in_yr, tbh)
+    mbh_p, mbh_m = mbh+sigma_level*mbh_err, max(0,mbh-sigma_level*mbh_err)
+    a_m = max(0, a-sigma_level*a_err_m)
+    for mm in np.linspace(mbh_m, mbh_p, 25):
+        inv_t = inv_eVs / (yr_in_s*tbh)
+        # Check SR condition (l = 1)
+        if (alpha(mu, mm) <= 0.5):
+            sr0 = sr_function(mu, mbh, a_m)
+            if sr0 > inv_t:
+                sr = sr0*n_eq_211(mu, mm, a_m, 1/invf)
+                if sr > inv_t:
+                    return 0
+                else:
+                    return 1
+            else:
+                return 1
+    return 1

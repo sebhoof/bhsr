@@ -71,7 +71,7 @@ def not_bosenova_is_problem_min(mu, min_sr_rate, invf, mbh, tbh, n):
     return res
 
 states0 = [(ell+1, ell, ell) for ell in range(1,6)]
-def is_box_excluded_bosenova(mu, invf, bh_data, states=states0, sigma_level=2):
+def is_box_allowed_bosenova(mu, invf, bh_data, sigma_level=2, states=states0):
     _, tbh, mbh, mbh_err, a, _, a_err_m = bh_data
     # Coservative approach by choosing the shortest BH time scale
     tbh = min(tEddington_in_yr, tbh)
