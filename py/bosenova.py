@@ -69,3 +69,23 @@ def not_bosenova_is_problem_min(mu, min_sr_rate, invf, mbh, tbh, n):
     inv_t = inv_eVs / (yr_in_s*tbh)
     res = min_sr_rate > inv_t*np.log(nb)*(nm/nb)
     return res
+
+states0 = [(ell+1, ell, ell) for ell in range(1,6)]
+def is_box_excluded_bosenova(mu, invf, bh_data, states=states0, sigma_level=2):
+    _, tbh, mbh, mbh_err, a, _, a_err_m = bh_data
+    # Coservative approach by choosing the shortest BH time scale
+    tbh = min(tEddington_in_yr, tbh)
+    mbh_p, mbh_m = mbh+sigma_level*mbh_err, max(0,mbh-sigma_level*mbh_err)
+    a_m = max(0, a-sigma_level*a_err_m)
+    # A configuration is only excluded if sr_checks = [0, 0]
+    for mm in np.linspace(mbh_m, mbh_p, 25):
+        sr_checks = []
+        for s in states:
+            n, l, m = s
+            # Check SR condition
+            if (alpha(mu, mm)/l <= 0.5):
+                sr = GammaSR_nlm(mu, mm, a_m, n, l, m)
+                sr_checks.append(is_sr_mode_min(mu, sr, mm, tbh)*not_bosenova_is_problem_min(mu, sr, invf, mm, tbh, n))
+        if sum(sr_checks) == 0:
+            return 0
+    return 1
