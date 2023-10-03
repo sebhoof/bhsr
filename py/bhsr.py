@@ -5,12 +5,14 @@
 import warnings
 import numpy as np
 
-from math import factorial, prod
-from fractions import Fraction
-from scipy.optimize import root_scalar
-from superrad.ultralight_boson import UltralightBoson
 from .constants import *
 from .kerr_bh import *
+from fractions import Fraction
+from math import factorial, prod
+from scipy.optimize import root_scalar
+from scipy.special import gamma
+from superrad.ultralight_boson import UltralightBoson
+
 
 ## BHSR rates using Dettweiler's approximation
 
@@ -36,7 +38,7 @@ def omega(mu: float, mbh: float, n: int, l: int, m: int) -> float:
 
 def c_nl(n: int, l: int) -> Fraction:
     """
-    Helper function for computing a factor in GammaSR_nlm.
+    Helper function for computing a factor in GammaSR_nlm_nr.
 
     Parameters:
         n (int): Principal quantum number.
@@ -44,8 +46,11 @@ def c_nl(n: int, l: int) -> Fraction:
 
     Returns:
         Fraction: Multiplication factor.
+
+    Notes:
+        - The alternative quantum number n', with n = n' + l + 1, is used in some publications.
     """
-    x = Fraction(factorial(n+l) * 2**(4*l+1), factorial(n-l-1) * n**(2*l+4) )
+    x = Fraction(factorial(n+l) * pow(2, 4*l+2), factorial(n-l-1) * pow(n, 2*l+4))
     y = Fraction(factorial(l), factorial(2*l+1)*factorial(2*l))
     return x*y*y
 
@@ -60,67 +65,9 @@ def c_nl_float(n: int, l: int) -> float:
     Returns:
         float: Multiplication factor.
     """
-    c_nl_fr = c_nl(n, l)
-    return 1.0*c_nl_fr
-
-def GammaSR_nlm(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, m: int = 1) -> float:
-    """
-    Calculate the superradiance rate for a bosonic cloud around a Kerr black hole.
-
-    Parameters:
-        mu (float): Boson mass in eV.
-        mbh (float): Black hole mass in Msol.
-        astar (float): Dimensionless black hole spin parameter.
-        n (int): Principal quantum number.
-        l (int): Orbital angular momentum quantum number.
-        m (int): Magnetic quantum number.
-
-    Returns:
-        float: Superradiance rate in eV
-
-    Notes:
-        - This formula uses (the corrected?) Dettweiler approximation.
-        - We use $n \equiv \bar{n} = n - l - 1$.
-        - Refs.: Eqs. (5), (13-15) in https://arxiv.org/pdf/2009.07206.pdf; also https://arxiv.org/pdf/1501.06570.pdf, https://arxiv.org/pdf/1411.2263.pdf
-        - Differences to Eq. (14) in https://arxiv.org/pdf/1805.02016.pdf
-    """
-    al = alpha(mu, mbh)
-    marp = al*(1 + np.sqrt(1-astar*astar))
-    x = m*astar - 2*marp
-    y = al**(4*(l+1))
-    factors = [(k*k)*(1.0-astar*astar) + x**2 for k in range(1,l+1)]
-    return c_nl_float(n, l) * mu*x * prod(factors) * al**(4*(l+1))
+    return 1.0*c_nl(n, l)
 
 ## BHSR rates using the "non-relativistic approximation"
-
-def c_nl_nr(n: int, l: int) -> Fraction:
-    """
-    Helper function for computing a factor in GammaSR_nlm_nr.
-
-    Parameters:
-        n (int): Principal quantum number.
-        l (int): Orbital angular momentum quantum number.
-
-    Returns:
-        Fraction: Multiplication factor.
-    """
-    x = Fraction(factorial(2*l+n+1) * 2**(4*l+2), factorial(n) * (l+n+1)**(2*l+4) )
-    y = Fraction(factorial(l), factorial(2*l+1)*factorial(2*l))
-    return x*y*y
-
-def c_nl_nr_float(n: int, l: int) -> float:
-    """
-    Helper function for computing a factor in GammaSR_nlm_nr (returns float).
-
-    Parameters:
-        n (int): Principal quantum number.
-        l (int): Orbital angular momentum quantum number.
-
-    Returns:
-        float: Multiplication factor.
-    """
-    c_nl_fr = c_nl_nr(n, l)
-    return 1.0*c_nl_fr
 
 def GammaSR_nlm_nr(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, m: int = 1) -> float:
     """
@@ -130,7 +77,7 @@ def GammaSR_nlm_nr(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, 
     Parameters:
         mu (float): Boson mass in eV.
         mbh (float): Black hole mass in Msol.
-        astar (float): Dimensionless black hole spin parameter.
+        astar (float): Dimensionless black hole spin parameter (astar = a/rg).
         n (int): Principal quantum number.
         l (int): Orbital angular momentum quantum number.
         m (int): Magnetic quantum number.
@@ -139,18 +86,106 @@ def GammaSR_nlm_nr(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, 
         float: Superradiance rate in eV
 
     Notes:
-        - Ref.: see Fig. 5 in https://arxiv.org/pdf/1004.3558.pdf
+        - See Eq. (18) in https://arxiv.org/pdf/1004.3558.pdf
+        - Fig. 5 in https://arxiv.org/pdf/1004.3558.pdf
+        - The authors of https://arxiv.org/pdf/1004.3558.pdf also use a semi-analytical method (see also https://arxiv.org/pdf/0912.1780.pdf)
     """
     al = alpha(mu, mbh)
-    marp = al*(1 + np.sqrt(1-astar*astar))
-    x = 2.0*(0.5*m*astar - marp)
-    factors = [(k*k)*(1.0-astar*astar) + x*x for k in range(1,l+1)]
-    return  mu*x * al**(4*(l+1)) * c_nl_nr_float(n, l) * prod(factors)
+    x = 1.0 - astar*astar
+    murp = al*(1 + np.sqrt(x)) # = mu*rg*rp
+    y = m*astar - 2*murp
+    factors = [(k*k)*x + y*y for k in range(1,l+1)]
+    return  mu*y*c_nl_float(n, l)*prod(factors)*pow(al, 4*l+4)
+
+## BHSR rates using corrected Dettweiler's formula + relativisitc correction (based on https://arxiv.org/pdf/2201.10941.pdf)
+
+def omega0_bxzh(mu: float, mbh: float, n: int) -> float:
+    n2 = n*n
+    al = alpha(mu, mbh)
+    al2 = al*al
+    x = 2*al2/(n2 + 4*al2 + n*np.sqrt(n2 + 8*al2))
+    return mu*np.sqrt(1.0 - x)
+
+def omega1_bxzh(mu: float, mbh: float, n: int) -> float:
+    om0 = omega0_bxzh(mu, mbh, n)
+    om02 = om0*om0
+    mu2 = mu*mu
+    al = alpha(mu, mbh)
+    al2 = al*al
+    x = 1.0 + 4*al2*(2*om02/mu2 - 1.0)/(n*n)
+    return (mu2 - om02)/(n*om0*x)
+
+def c_nl_bxzh(n: int, l: int) -> Fraction:
+    x = Fraction(factorial(n+l) * pow(2, 4*l+2), factorial(n-l-1))
+    y = Fraction(factorial(l), factorial(2*l+1)*factorial(2*l))
+    return x*y*y
+
+def c_nl_bxzh_float(n: int, l: int) -> float:
+    return 1.0*c_nl_bxzh(n, l)
+
+def GammaSR_nlm_bxzh(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, m: int = 1) -> float:
+    """
+    Calculate the superradiance rate for a bosonic cloud around a Kerr black hole,
+    using the corrected Dettweiler approximation.
+
+    Returns:
+        float: Superradiance rate in eV
+
+    Notes:
+        - Ref.: https://arxiv.org/pdf/2201.10941.pdf
+    """
+    om0 = omega0_bxzh(mu, mbh, n)
+    al = alpha(mu, mbh)
+    z = pow(al*al*(1.0-om0*om0/(mu*mu)), l+0.5)
+    om1 = omega1_bxzh(mu, mbh, n)
+    c_nl = c_nl_bxzh_float(n, l)
+    x = 1.0-astar*astar
+    rp = r_plus(mbh, astar)
+    y = m*astar - 2*rp*om0
+    factors = [k*k*x + y*y for k in range(1,l+1)]
+    return y*z*c_nl*prod(factors)*om1
+
+def gam_pq_bxzh(p: float, q: float, eps: float, n: int, l: int) -> float:
+    lp = l + eps
+    ip = p*1j
+    twolp = 2*lp
+    g1 = gamma(twolp + 1)
+    g2 = gamma(twolp + 2)
+    g2n = gamma(twolp + 1 + n - l)
+    gpmeps = gamma(1 + 2*eps)*gamma(1 - 2*eps)
+    x1 = lp + 1 + ip
+    x2 = np.sqrt(q - p*p + 0j)
+    gabs = np.abs(gamma(x1 + x2)*gamma(x1 - x2))
+    gmix = gamma(1.0 - ip - eps + x2)*gamma(1.0 - ip - eps - x2)
+    gmix *= gamma(1.0 + ip + eps + x2)*gamma(1.0 + ip + eps - x2)
+    num = g2n*gpmeps*gabs*gabs*pow(2, 4*lp + 2)
+    denom = factorial(n-l-1)*g1*g1*g2*g2*gmix
+    return num/denom
+
+def omega_nlm_bxzh(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, m: int = 1) -> float:
+    om0 = omega0_bxzh(mu, mbh, n)
+    om1 = omega1_bxzh(mu, mbh, n)
+    al = alpha(mu, mbh)
+    al2 = al*al
+    eps = -8.0*al2/(2*l+1)
+    lp = l + eps
+    if lp < 0:
+        return 0, 0
+    rp = r_plus(mbh, astar)
+    rG = rg(mbh)
+    x = np.sqrt(1.0 - astar*astar)
+    y = mu*mu - om0*om0
+    p = -0.5*(m*astar - 2.0*rp*om0)/x
+    q = 4*om0*p*rG - 2*(3.0 - x)*al2
+    gam_terms = gam_pq_bxzh(p, q, eps, n, l)
+    kappab_term = pow(rG*rG*x*x*y, lp+0.5)
+    delta1 = 0.5*(q/eps - eps - p*2j)*kappab_term*gam_terms
+    om = om0 + (eps + delta1)*om1
+    return np.real(om), np.imag(om)
 
 ## BHSR rates from superrad Python package
 
-bc0 = UltralightBoson(spin=0, model="relativistic")
-def GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, bc: UltralightBoson) -> float:
+def GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, bc: UltralightBoson, m: int) -> float:
     """
     Calculate the superradiance rate for a bosonic cloud around a Kerr black hole,
     using the superrad Python package (https://bitbucket.org/weast/superrad)
@@ -168,8 +203,19 @@ def GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, bc: UltralightBoso
         - Ref.: https://arxiv.org/pdf/2211.03845.pdf
     """
     try:
-        wf = bc.make_waveform(mbh, astar, mu, units="physical")
-        return 2.0*np.pi*inv_eVs/wf.cloud_growth_time()
+        """
+        evo_type can take values evo_type="full" or evo_type="matched".
+        The "matched" evolution assumes that the boson cloud decays solely through gravitational radiation after reach its peak mass (by definition, t=0), and matches this on to a exponentially growing solution with constant growth rate before the peak mass is obtained (t<0).
+        Hence, it is not very accurate around t=0, and in particular the derivative of the frequency will be discontinuous at this point.
+        The "full" evolution option numerically integrates the ordinary differential equations describing the cloud mass and black hole mass and spin, and hence is more accurate for scenarios when the signal before the time when the cloud reaches saturation makes a non-negligible contribution.
+        However, it is significantly more computationally expensive, and the numerical integration is not always robust. This option should currently be considered experimental.
+        Details and a comparison of these methods can be found in the main paper.
+        """;
+        # wf = bc.make_waveform(mbh, astar, mu, units="physical", evo_type="matched")
+        # return inv_eVs/wf.efold_time()# .cloud_growth_time()
+        al = alpha(mu, mbh)
+        rG = rg(mbh)
+        return bc._cloud_model.omega_imag(m, al, astar)/rG
     except ValueError:
         return 0
 
@@ -184,13 +230,13 @@ def GammaSR_211xinf_322x322(ma, mbh, fa):
     return 1.1e-8 * ma*pow(al, 8)*pow(mP_in_GeV/fa, 4)
 
 def n_eq_211(ma, mbh, astar, fa):
-    sr0 = GammaSR_nlm(ma, mbh, astar, 2, 1, 1)
+    sr0 = GammaSR_nlm_nr(ma, mbh, astar, 2, 1, 1)
     sr_3b22 = GammaSR_322xBH_211x211(ma, mbh, astar, fa)
     sr_2i33 = GammaSR_211xinf_322x322(ma, mbh, fa)
     return 2.0*np.sqrt(sr0*sr_2i33/3.0)/sr_3b22
 
 def GammaSR_nlm_eq(ma, mbh, astar, fa):
-    sr0 = GammaSR_nlm(ma, mbh, astar, 2, 1, 1)
+    sr0 = GammaSR_nlm_nr(ma, mbh, astar, 2, 1, 1)
     neq = n_eq_211(ma, mbh, astar, fa)
     return neq*sr0
 
@@ -213,7 +259,7 @@ def n_max(mbh: float, da: float = 0.1) -> float:
 def is_sr_mode(mu, mbh, astar, tbh, n, l, m):
     nm = n_max(mbh)
     inv_t = inv_eVs / (yr_in_s*tbh)
-    res = GammaSR_nlm(mu, mbh, astar, n, l, m) > inv_t*np.log(nm)
+    res = GammaSR_nlm_nr(mu, mbh, astar, n, l, m) > inv_t*np.log(nm)
     if np.isnan(res):
         res = 0
     return res
@@ -243,7 +289,7 @@ def compute_regge_slopes(mu: float, mbh_vals: list[float], states: list[tuple[in
         - Note that the root finding may fail if no Regge slope exists. In this case, we set the corresponding BH spin value = NAN.
     """
     a_min_vals = []
-    foo = lambda a, mbh, n, l, m: GammaSR_nlm(mu, mbh, a, n, l, m) - inv_tSR
+    foo = lambda a, mbh, n, l, m: GammaSR_nlm_nr(mu, mbh, a, n, l, m) - inv_tSR
     for mbh in mbh_vals:
         temp = []
         for s in states:

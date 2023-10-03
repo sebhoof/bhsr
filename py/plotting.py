@@ -8,8 +8,8 @@ import numpy as np
 plt.rc('text', usetex=True)
 #plt.rc('text.latex', preamble=r'\usepackage{lmodern}\usepackage[T1]{fontenc}\usepackage{amsmath}\usepackage{amssymb}\usepackage{siunitx}\DeclareSIUnit\year{yr}\usepackage[version=4]{mhchem}')
 #plt.rc('pgf', texsystem='pdflatex', preamble=r'\usepackage{lmodern}\usepackage[T1]{fontenc}\DeclareUnicodeCharacter{2212}{-}\usepackage{amsmath}\usepackage{amssymb}\usepackage{siunitx}\DeclareSIUnit\year{yr}\usepackage[version=4]{mhchem}')
-plt.rc('text.latex', preamble=r'\usepackage{newtxtext}\usepackage{newtxmath}\usepackage{amsmath}\usepackage{amssymb}\usepackage{siunitx}\DeclareSIUnit\year{yr}\usepackage[version=4]{mhchem}')
-plt.rc('pgf', texsystem='pdflatex', preamble=r'\usepackage{newtxtext}\usepackage{newtxmath}\usepackage{amsmath}\usepackage{amssymb}\usepackage{siunitx}\DeclareSIUnit\year{yr}\usepackage[version=4]{mhchem}')
+plt.rc('text.latex', preamble=r'\usepackage{amsmath}\usepackage{amssymb}\let\Bbbk\relax\usepackage{siunitx}\DeclareSIUnit\year{yr}\usepackage[version=4]{mhchem}\usepackage{newtxtext}\usepackage{newtxmath}')
+plt.rc('pgf', texsystem='pdflatex', preamble=r'\usepackage{amsmath}\usepackage{amssymb}\let\Bbbk\relax\usepackage{siunitx}\DeclareSIUnit\year{yr}\usepackage[version=4]{mhchem}\usepackage{newtxtext}\usepackage{newtxmath}')
 plt.rc('font', **{'family':'serif','size':10})
 plt.rc('axes', labelsize=10)
 plt.rc('xtick', **{'labelsize':8, 'major.pad':4})
@@ -29,8 +29,8 @@ golden_ratio = 0.5*(1.0 + np.sqrt(5.0))
 
 def set_style(gs=10, lts=10, lfs=8, lbls=10, tls=10):
     plt.rc('text', usetex=True)
-    plt.rc('text.latex', preamble=r'\usepackage{lmodern}\usepackage[T1]{fontenc}\usepackage{amsmath}\usepackage{amssymb}\usepackage{siunitx}')
-    plt.rc('pgf', texsystem='pdflatex', preamble=r'\usepackage{lmodern}\usepackage[T1]{fontenc}\usepackage{grffile}\DeclareUnicodeCharacter{2212}{-}\usepackage{amsmath}\usepackage{amssymb}\usepackage{siunitx}')
+    #plt.rc('text.latex', preamble=r'\usepackage{lmodern}\usepackage[T1]{fontenc}\usepackage{amsmath}\usepackage{amssymb}\usepackage{siunitx}')
+    #plt.rc('pgf', texsystem='pdflatex', preamble=r'\usepackage{lmodern}\usepackage[T1]{fontenc}\usepackage{grffile}\DeclareUnicodeCharacter{2212}{-}\usepackage{amsmath}\usepackage{amssymb}\usepackage{siunitx}')
     plt.rc('font', **{'family':'serif', 'size': gs})
     plt.rc('axes', labelsize=lbls)
     plt.rc('xtick', **{'labelsize': tls, 'major.pad': 0.5*tls})
@@ -39,7 +39,7 @@ def set_style(gs=10, lts=10, lfs=8, lbls=10, tls=10):
     plt.rc('figure', titlesize=12)
     plt.rc('mathtext', default='regular')
 
-def log10_special_formatter(x, pos, offset=0, is_xaxis=True):
+def log10_special_formatter(x, _, offset=0, is_xaxis=True):
     res = "$10^{%g}$" % (x+offset)
     if np.abs(x+offset) < 3:
         if is_xaxis:
@@ -48,7 +48,7 @@ def log10_special_formatter(x, pos, offset=0, is_xaxis=True):
             res = "$%g$" % (10.0**(x+offset))
     return res
 
-def log10_special_formatter_every_n(x, pos, n=2, is_xaxis=False):
+def log10_special_formatter_every_n(x, _, n=2, is_xaxis=False):
     res = ""
     if x%n == 0:
         res = "$10^{{{:g}}}$".format(x)
@@ -58,7 +58,7 @@ def log10_special_formatter_every_n(x, pos, n=2, is_xaxis=False):
                 res += "$^{\phantom{0}}$"
     return res
 
-def pow10_formatter(x, pos, every_n=1, is_xaxis=False):
+def pow10_formatter(x, _, every_n=1, is_xaxis=False):
     lgx = int(np.log10(x))
     if lgx%every_n == 0:
         if np.abs(lgx) < 3:
