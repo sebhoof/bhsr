@@ -13,12 +13,26 @@ from scipy.optimize import root_scalar
 from scipy.special import gamma
 from superrad.ultralight_boson import UltralightBoson
 
-
-## BHSR rates using Dettweiler's approximation
-
-def omega(mu: float, mbh: float, n: int, l: int, m: int) -> float:
+def omegaLO(mu: float, mbh: float, n: int) -> float:
     """
-    Calculates the frequency of the superradiant mode for a given set of quantum numbers.
+    Calculates the leading-order frequency of the superradiant mode for a given set of quantum numbers |n,l,m>.
+
+    Parameters:
+        mu (float): Boson mass in eV.
+        mbh (float): Black hole mass in Msol.
+        n (int): Principal quantum number.
+        l (int): Orbital angular momentum quantum number (currently not used).
+        m (int): Magnetic quantum number (currently not used).
+
+    Returns:
+        float: The frequency of the superradiant mode in eV.
+    """
+    x = alpha(mu, mbh)/n
+    return mu*(1.0 - 0.5*x*x)
+
+def omegaHyperfine(mu: float, mbh: float, astar: float, n: int, l: int, m: int) -> float:
+    """
+    Calculates the  hyperfine frequency of the superradiant mode for a given set of quantum numbers quantum numbers |n,l,m>.
 
     Parameters:
         mu (float): Boson mass in eV.
@@ -31,10 +45,14 @@ def omega(mu: float, mbh: float, n: int, l: int, m: int) -> float:
         float: The frequency of the superradiant mode in eV.
 
     Notes:
-        - This function uses the LO approximation for the energy of the state |n,l,m>.
+        - See Eq. (2.28) in https://arxiv.org/pdf/1908.10370.pdf
     """
     x = alpha(mu, mbh)/n
-    return mu*(1.0 - 0.5*x*x)
+    x2 = x*x
+    x4 = x2*x2
+    fine = 1.875 + 6.0*n/(2*l+1) # = 15/16 + 6n/(2l+1)
+    hyperfine = 8.0*m*n*n*astar/(l*(2*l+1)*(2*l+2))
+    return mu*(1.0 - 0.5*x2 + fine*x4 + hyperfine*x2*x4)
 
 def c_nl(n: int, l: int) -> Fraction:
     """
