@@ -58,7 +58,7 @@ def not_bosenova_is_problem(mu, invf, mbh, a, tbh, n, l, m):
     nm = n_max(mbh)
     nb = n_bose(mu, invf, mbh, n)
     inv_t = inv_eVs / (yr_in_s*tbh)
-    res = GammaSR_nlm(mu, mbh, a, n, l, m) > inv_t*np.log(nb)*(nm/nb)
+    res = GammaSR_nlm_nr(mu, mbh, a, n, l, m) > inv_t*np.log(nb)*(nm/nb)
     if np.isnan(res):
         res = 0
     return res
@@ -84,7 +84,7 @@ def is_box_allowed_bosenova(mu, invf, bh_data, sigma_level=2, states=states0):
             n, l, m = s
             # Check SR condition
             if (alpha(mu, mm)/l <= 0.5):
-                sr = GammaSR_nlm(mu, mm, a_m, n, l, m)
+                sr = GammaSR_nlm_nr(mu, mm, a_m, n, l, m)
                 sr_checks.append(is_sr_mode_min(mu, sr, mm, tbh)*not_bosenova_is_problem_min(mu, sr, invf, mm, tbh, n))
         if sum(sr_checks) == 0:
             return 0

@@ -74,7 +74,7 @@ def c_nl(n: int, l: int) -> Fraction:
 
 def c_nl_float(n: int, l: int) -> float:
     """
-    Helper function for computing a factor in GammaSR_nlm (returns float).
+    Helper function for computing a numerical factor in the SR rate (returns float).
 
     Parameters:
         n (int): Principal quantum number.
