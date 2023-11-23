@@ -190,7 +190,7 @@ def omega_nlm_bxzh(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, 
     kappab_term = pow(rG*rG*x*x*y, lp+0.5)
     delta1 = 0.5*(q/eps - eps - p*2j)*kappab_term*gam_terms
     om = om0 + (eps + delta1)*om1
-    return np.real(om), np.imag(om)
+    return om.real, om.imag
 
 ## BHSR rates from superrad Python package
 
