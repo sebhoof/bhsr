@@ -5,14 +5,16 @@
 import warnings
 import numpy as np
 
-from .constants import *
-from .kerr_bh import *
 from fractions import Fraction
 from math import factorial, prod
+from numba import jit
 from scipy.optimize import root_scalar
 from scipy.special import gamma
 from superrad.ultralight_boson import UltralightBoson
+from .constants import *
+from .kerr_bh import *
 
+@jit(nopython=True, cache=True)
 def omegaLO(mu: float, mbh: float, n: int) -> float:
     """
     Calculates the leading-order frequency of the superradiant mode for a given set of quantum numbers |n,l,m>.
@@ -30,6 +32,7 @@ def omegaLO(mu: float, mbh: float, n: int) -> float:
     x = alpha(mu, mbh)/n
     return mu*(1.0 - 0.5*x*x)
 
+@jit(nopython=True, cache=True)
 def omegaHyperfine(mu: float, mbh: float, astar: float, n: int, l: int, m: int) -> float:
     """
     Calculates the  hyperfine frequency of the superradiant mode for a given set of quantum numbers quantum numbers |n,l,m>.
@@ -50,9 +53,9 @@ def omegaHyperfine(mu: float, mbh: float, astar: float, n: int, l: int, m: int) 
     x = alpha(mu, mbh)/n
     x2 = x*x
     x4 = x2*x2
-    fine = 1.875 + 6.0*n/(2*l+1) # = 15/16 + 6n/(2l+1)
+    fine = 1.875 - 6.0*n/(2*l+1) # = 2 - 1/8 - ...
     hyperfine = 8.0*m*n*n*astar/(l*(2*l+1)*(2*l+2))
-    return mu*(1.0 - 0.5*x2 + fine*x4 + hyperfine*x2*x4)
+    return mu*(1.0 - 0.5*x2 + fine*x4 + hyperfine*x*x4)
 
 def c_nl(n: int, l: int) -> Fraction:
     """
@@ -71,19 +74,6 @@ def c_nl(n: int, l: int) -> Fraction:
     x = Fraction(factorial(n+l) * pow(2, 4*l+2), factorial(n-l-1) * pow(n, 2*l+4))
     y = Fraction(factorial(l), factorial(2*l+1)*factorial(2*l))
     return x*y*y
-
-def c_nl_float(n: int, l: int) -> float:
-    """
-    Helper function for computing a numerical factor in the SR rate (returns float).
-
-    Parameters:
-        n (int): Principal quantum number.
-        l (int): Orbital angular momentum quantum number.
-
-    Returns:
-        float: Multiplication factor.
-    """
-    return 1.0*c_nl(n, l)
 
 ## BHSR rates using the "non-relativistic approximation"
 
@@ -113,10 +103,11 @@ def GammaSR_nlm_nr(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, 
     murp = al*(1 + np.sqrt(x)) # = mu*rg*rp
     y = m*astar - 2*murp
     factors = [(k*k)*x + y*y for k in range(1,l+1)]
-    return  mu*y*c_nl_float(n, l)*prod(factors)*pow(al, 4*l+4)
+    return  mu*y*c_nl(n, l)*prod(factors)*pow(al, 4*l+4)
 
 ## BHSR rates using corrected Dettweiler's formula + relativisitc correction (based on https://arxiv.org/pdf/2201.10941.pdf)
 
+@jit(nopython=True, cache=True)
 def omega0_bxzh(mu: float, mbh: float, n: int) -> float:
     n2 = n*n
     al = alpha(mu, mbh)
@@ -124,22 +115,22 @@ def omega0_bxzh(mu: float, mbh: float, n: int) -> float:
     x = 2*al2/(n2 + 4*al2 + n*np.sqrt(n2 + 8*al2))
     return mu*np.sqrt(1.0 - x)
 
+@jit(nopython=True, cache=True)
 def omega1_bxzh(mu: float, mbh: float, n: int) -> float:
     om0 = omega0_bxzh(mu, mbh, n)
-    om02 = om0*om0
-    mu2 = mu*mu
-    al = alpha(mu, mbh)
-    al2 = al*al
-    x = 1.0 + 4*al2*(2*om02/mu2 - 1.0)/(n*n)
-    return (mu2 - om02)/(n*om0*x)
+    if om0 > 0:
+        om02 = om0*om0
+        mu2 = mu*mu
+        al = alpha(mu, mbh)
+        al2 = al*al
+        x = 1.0 + 4*al2*(2*om02/mu2 - 1.0)/(n*n)
+        return (mu2 - om02)/(n*om0*x)
+    return 0
 
 def c_nl_bxzh(n: int, l: int) -> Fraction:
     x = Fraction(factorial(n+l) * pow(2, 4*l+2), factorial(n-l-1))
     y = Fraction(factorial(l), factorial(2*l+1)*factorial(2*l))
     return x*y*y
-
-def c_nl_bxzh_float(n: int, l: int) -> float:
-    return 1.0*c_nl_bxzh(n, l)
 
 def GammaSR_nlm_bxzh(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, m: int = 1) -> float:
     """
@@ -156,7 +147,7 @@ def GammaSR_nlm_bxzh(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1
     al = alpha(mu, mbh)
     z = pow(al*al*(1.0-om0*om0/(mu*mu)), l+0.5)
     om1 = omega1_bxzh(mu, mbh, n)
-    c_nl = c_nl_bxzh_float(n, l)
+    c_nl = c_nl_bxzh(n, l)
     x = 1.0-astar*astar
     rp = r_plus(mbh, astar)
     y = m*astar - 2*rp*om0
@@ -230,15 +221,14 @@ def GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, bc: UltralightBoso
         Details and a comparison of these methods can be found in the main paper.
         """;
         # wf = bc.make_waveform(mbh, astar, mu, units="physical", evo_type="matched")
-        # return inv_eVs/wf.efold_time()# .cloud_growth_time()
+        # return inv_eVs/wf.efold_time()
         al = alpha(mu, mbh)
         rG = rg(mbh)
         return bc._cloud_model.omega_imag(m, al, astar)/rG
     except ValueError:
         return 0
 
-# Compute spindown rate according to quasi-equilibrium approximation
-# Follow O. Simon's unpublished notes
+# Compute spindown rate according to quasi-equilibrium approximation (ariv:2011.11646,  Olivier Simon's unpublished notes)
 def GammaSR_322xBH_211x211(ma, mbh, astar, fa):
     al = alpha(ma, mbh)
     return 4.3e-7 * ma*(1.0 + np.sqrt(1.0 - astar*astar))*pow(al, 11)*pow(mP_in_GeV/fa, 4)
@@ -247,15 +237,26 @@ def GammaSR_211xinf_322x322(ma, mbh, fa):
     al = alpha(ma, mbh)
     return 1.1e-8 * ma*pow(al, 8)*pow(mP_in_GeV/fa, 4)
 
-def n_eq_211(ma, mbh, astar, fa):
+def n_eq_211_nr(ma, mbh, astar, fa):
     sr0 = GammaSR_nlm_nr(ma, mbh, astar, 2, 1, 1)
     sr_3b22 = GammaSR_322xBH_211x211(ma, mbh, astar, fa)
     sr_2i33 = GammaSR_211xinf_322x322(ma, mbh, fa)
     return 2.0*np.sqrt(sr0*sr_2i33/3.0)/sr_3b22
 
-def GammaSR_nlm_eq(ma, mbh, astar, fa):
+def GammaSR_nlm_eq_nr(ma, mbh, astar, fa):
     sr0 = GammaSR_nlm_nr(ma, mbh, astar, 2, 1, 1)
-    neq = n_eq_211(ma, mbh, astar, fa)
+    neq = n_eq_211_nr(ma, mbh, astar, fa)
+    return neq*sr0
+
+def n_eq_211_superrad(ma, mbh, astar, fa):
+    sr0 = GammaSR_nlm_nr(ma, mbh, astar, 2, 1, 1)
+    sr_3b22 = GammaSR_322xBH_211x211(ma, mbh, astar, fa)
+    sr_2i33 = GammaSR_211xinf_322x322(ma, mbh, fa)
+    return 2.0*np.sqrt(sr0*sr_2i33/3.0)/sr_3b22
+
+def GammaSR_nlm_eq_superrad(ma, mbh, astar, fa):
+    sr0 = GammaSR_nlm_nr(ma, mbh, astar, 2, 1, 1)
+    neq = n_eq_211_nr(ma, mbh, astar, fa)
     return neq*sr0
 
 def n_max(mbh: float, da: float = 0.1) -> float:
@@ -348,7 +349,7 @@ def compute_regge_slopes_given_rate(mu: float, mbh_vals: list[float], sr_functio
         a_min_vals.append(a_root)
     return np.array(a_min_vals)
 
-def is_box_allowed_211(mu: float, invf: float, bh_data: list[int, ...], sr_function: callable, sigma_level: float = 2):
+def is_box_allowed_211(mu: float, invf: float, bh_data: list[int], sr_function: callable, sigma_level: float = 2):
     _, tbh, mbh, mbh_err, a, _, a_err_m = bh_data
     # Coservative approach by choosing the shortest BH time scale
     tbh = min(tEddington_in_yr, tbh)
@@ -360,7 +361,7 @@ def is_box_allowed_211(mu: float, invf: float, bh_data: list[int, ...], sr_funct
         if (alpha(mu, mm) <= 0.5):
             sr0 = sr_function(mu, mbh, a_m)
             if sr0 > inv_t:
-                sr = sr0*n_eq_211(mu, mm, a_m, 1/invf)
+                sr = sr0*n_eq_211_nr(mu, mm, a_m, 1/invf)
                 if sr > inv_t:
                     return 0
                 else:

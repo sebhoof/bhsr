@@ -4,8 +4,10 @@
 
 import numpy as np
 
+from numba import jit
 from .constants import GNewton
 
+@jit(nopython=True, cache=True)
 def rg(mbh: float) -> float:
     """
     Calculate the "gravitational radius" of a Kerr black hole.
@@ -18,6 +20,7 @@ def rg(mbh: float) -> float:
     """
     return GNewton*mbh
 
+@jit(nopython=True, cache=True)
 def alpha(mu: float, mbh: float) -> float:
     """
     Compute the dimensionless coupling constant alpha.
@@ -31,6 +34,7 @@ def alpha(mu: float, mbh: float) -> float:
     """
     return rg(mbh)*mu
 
+@jit(nopython=True, cache=True)
 def r_plus(mbh: float, astar: float) -> float:
     """
     Calculates the radius of the inner event horizon of a Kerr black hole.
@@ -44,6 +48,7 @@ def r_plus(mbh: float, astar: float) -> float:
     """
     return rg(mbh)*(1 + np.sqrt(1 - astar*astar))
 
+@jit(nopython=True, cache=True)
 def r_minus(mbh: float, astar: float) -> float:
     """
     Calculates the radius of the outer event horizon of a Kerr black hole.
@@ -57,6 +62,7 @@ def r_minus(mbh: float, astar: float) -> float:
     """
     return rg(mbh)*(1 - np.sqrt(1 - astar*astar))
 
+@jit(nopython=True, cache=True)
 def omH(mbh: float, astar: float) -> float:
     """
     Calculate the angular velocity of the event horizon of a Kerr black hole.
