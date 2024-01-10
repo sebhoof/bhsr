@@ -115,11 +115,10 @@ def beta_n(n: int, c1: complex, c3: complex) -> complex:
 def gamma_n(n: int, c2: complex, c4: complex) -> complex:
    return n*n + (c2 - 3)*n + c4
 
-def continued_fraction(omega: complex, mbh: float, astar: float, mu: float, l: int, m: int) -> [float, float]:
+def continued_fraction(omega: complex, mbh: float, astar: float, mu: float, l: int, m: int, nmax: int = 2000) -> [float, float]:
    # Simple method for now: set the residual terms to zero
    # For alternatives, see Sec. II C in https://arxiv.org/pdf/1410.7698.pdf
    c0, c1, c2, c3, c4, cN1, cN2 = cfunctions(omega, mbh, astar, mu, l, m)
-   nmax = 1000
    fr = (-1+0j) + cN1/np.sqrt(nmax) + cN2/nmax
    # fr = 0+0j
    fr0 = beta_n(0, c1, c3)/alpha_n(0, c0)

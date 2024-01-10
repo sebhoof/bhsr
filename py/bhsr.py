@@ -194,7 +194,9 @@ def omega_nlm_bxzh(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, 
 
 ## BHSR rates from superrad Python package
 
-def GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, bc: UltralightBoson, m: int) -> float:
+bc0 = UltralightBoson(spin=0, model="relativistic")
+
+def GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, m: int = 1, bc: UltralightBoson = bc0) -> float:
     """
     Calculate the superradiance rate for a bosonic cloud around a Kerr black hole,
     using the superrad Python package (https://bitbucket.org/weast/superrad)
@@ -219,7 +221,7 @@ def GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, bc: UltralightBoso
         The "full" evolution option numerically integrates the ordinary differential equations describing the cloud mass and black hole mass and spin, and hence is more accurate for scenarios when the signal before the time when the cloud reaches saturation makes a non-negligible contribution.
         However, it is significantly more computationally expensive, and the numerical integration is not always robust. This option should currently be considered experimental.
         Details and a comparison of these methods can be found in the main paper.
-        """;
+        """
         # wf = bc.make_waveform(mbh, astar, mu, units="physical", evo_type="matched")
         # return inv_eVs/wf.efold_time()
         al = alpha(mu, mbh)
@@ -228,35 +230,88 @@ def GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, bc: UltralightBoso
     except ValueError:
         return 0
 
-# Compute spindown rate according to quasi-equilibrium approximation (ariv:2011.11646,  Olivier Simon's unpublished notes)
-def GammaSR_322xBH_211x211(ma, mbh, astar, fa):
-    al = alpha(ma, mbh)
-    return 4.3e-7 * ma*(1.0 + np.sqrt(1.0 - astar*astar))*pow(al, 11)*pow(mP_in_GeV/fa, 4)
+# Compute spindown rate according to quasi-equilibrium approximation including self-interactions
+# See arXiv:2011.11646 for details
 
-def GammaSR_211xinf_322x322(ma, mbh, fa):
-    al = alpha(ma, mbh)
-    return 1.1e-8 * ma*pow(al, 8)*pow(mP_in_GeV/fa, 4)
+def GammaSR_322xBH_211x211(mu: float, mbh: float, astar: float, f: float) -> float:
+    """
+    Calculates the rate factor that corresponds to the damping rate of forced ocillations in the boson cloud,
+    from the interacting |211> and |322> states and the BH.
 
-def n_eq_211_nr(ma, mbh, astar, fa):
-    sr0 = GammaSR_nlm_nr(ma, mbh, astar, 2, 1, 1)
-    sr_3b22 = GammaSR_322xBH_211x211(ma, mbh, astar, fa)
-    sr_2i33 = GammaSR_211xinf_322x322(ma, mbh, fa)
+    Parameters:
+        mu (float): Boson mass in eV.
+        mbh (float): Black hole mass in Msol.
+        astar (float): Dimensionless black hole spin parameter.
+        f (float): Boson decay constant in GeV.
+
+    Returns:
+        float: The rate factor in eV.
+
+    Notes:
+        - Ref.: Table I, https://arxiv.org/pdf/2011.11646.pdf
+    """
+    al = alpha(mu, mbh)
+    return 4.3e-7 * mu*(1.0 + np.sqrt(1.0 - astar*astar))*pow(al, 11)*pow(mP_in_GeV/f, 4)
+
+def GammaSR_211xinf_322x322(mu: float, mbh: float, f: float) -> float:
+    """
+    Calculates the rate factor that corresponds to scalar emissions from the interacting |211> and |322> states
+    to infinity.
+
+    Parameters:
+        mu (float): Boson mass in eV.
+        mbh (float): Black hole mass in Msol.
+        f (float): Boson decay constant in GeV.
+
+    Returns:
+        float: The rate factor in eV.
+
+    Notes:
+        - Ref.: Table I, https://arxiv.org/pdf/2011.11646.pdf
+    """
+    al = alpha(mu, mbh)
+    return 1.1e-8 * mu*pow(al, 8)*pow(mP_in_GeV/f, 4)
+
+# GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, bc: UltralightBoson, m: int)
+
+def n_eq_211_superrad(mu: float, mbh: float, astar: float, f: float, bc: UltralightBoson = bc0) -> float:
+    """
+    Calculates the equilibrium occupation number of the |211> state in a self-interacting boson cloud.
+
+    Parameters:
+        mu (float): Boson mass in eV.
+        mbh (float): Black hole mass in Msol.
+        astar (float): Dimensionless black hole spin parameter.
+        f (float): Boson decay constant in GeV.
+        bc (UltralightBoson, optional): Type of boson approximation to consider (default: relativistic scalar)
+
+    Returns:
+        float: The equilibrium occupation number.
+
+    Notes:
+        - Ref.: Eq. (55a) in https://arxiv.org/pdf/2011.11646.pdf
+    """
+    sr0 = GammaSR_nlm_superrad(mu, mbh, astar, 1, bc) # From superrad
+    sr_3b22 = GammaSR_322xBH_211x211(mu, mbh, astar, f)
+    sr_2i33 = GammaSR_211xinf_322x322(mu, mbh, f)
     return 2.0*np.sqrt(sr0*sr_2i33/3.0)/sr_3b22
 
-def GammaSR_nlm_eq_nr(ma, mbh, astar, fa):
-    sr0 = GammaSR_nlm_nr(ma, mbh, astar, 2, 1, 1)
-    neq = n_eq_211_nr(ma, mbh, astar, fa)
-    return neq*sr0
+def GammaSR_nlm_eq_superrad(mu: float, mbh: float, astar: float, f: float, bc: UltralightBoson = bc0) -> float:
+    """
+    Calculates the effective SR rate of the |211> state in a self-interacting boson cloud.
 
-def n_eq_211_superrad(ma, mbh, astar, fa):
-    sr0 = GammaSR_nlm_nr(ma, mbh, astar, 2, 1, 1)
-    sr_3b22 = GammaSR_322xBH_211x211(ma, mbh, astar, fa)
-    sr_2i33 = GammaSR_211xinf_322x322(ma, mbh, fa)
-    return 2.0*np.sqrt(sr0*sr_2i33/3.0)/sr_3b22
+    Parameters:
+        mu (float): Boson mass in eV.
+        mbh (float): Black hole mass in Msol.
+        astar (float): Dimensionless black hole spin parameter.
+        f (float): Boson decay constant in GeV.
+        bc (UltralightBoson, optional): Type of boson approximation to consider (default: relativistic scalar)
 
-def GammaSR_nlm_eq_superrad(ma, mbh, astar, fa):
-    sr0 = GammaSR_nlm_nr(ma, mbh, astar, 2, 1, 1)
-    neq = n_eq_211_nr(ma, mbh, astar, fa)
+    Returns:
+        float: The equilibrium occupation number.
+    """
+    sr0 = GammaSR_nlm_superrad(mu, mbh, astar, 1, bc) # From superrad
+    neq = n_eq_211_superrad(mu, mbh, astar, f)
     return neq*sr0
 
 def n_max(mbh: float, da: float = 0.1) -> float:
