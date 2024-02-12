@@ -416,7 +416,7 @@ def is_box_allowed_211(mu: float, invf: float, bh_data: list[int], sr_function: 
         if (alpha(mu, mm) <= 0.5):
             sr0 = sr_function(mu, mbh, a_m)
             if sr0 > inv_t:
-                sr = sr0*n_eq_211_nr(mu, mm, a_m, 1/invf)
+                sr = sr0*n_eq_211_superrad(mu, mm, a_m, 1/invf)
                 if sr > inv_t:
                     return 0
                 else:
