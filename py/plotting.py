@@ -95,21 +95,25 @@ def sci_format(x):
     return '{:.2f} \\times 10^{{ {:d} }}'.format(sign*lead, exp)
 
 ## Specific plotting functions
-def plot_m_a(m, a, label='', bfit=None, xlims=[5,25], ylims=[0,1]):
+def plot_m_a(m, a, label='', bfit=None, xlims=[5,25], ylims=[0,1], lgm=False):
     phi = np.linspace(0, 2*np.pi, 100)
-    plt.figure(figsize=(mnras_width, 3))
-    plt.plot(m, a, 'o', ms=1, c='0.6', rasterized=True, label=r"Samples")
     m_mean, a_mean = np.mean(m), np.mean(a)
     m_std, a_std = np.std(m), np.std(a)
     cov = np.cov((m,a))
     l, c = np.linalg.eig(cov)
+    foo = lambda x : x
+    plt.figure(figsize=(mnras_width, 3))
+    if lgm:
+        foo = lambda x : pow(10, x)
+        plt.xscale('log')
+    plt.plot(foo(m), a, 'o', ms=1, c='0.6', rasterized=True, label=r"Samples")
     if (bfit != None):
         plt.plot(bfit[0], bfit[1], ms=5, c='k', marker='*')
-    print("m = {:.2f} +/- {:.2f}, a = {:.2f} +/- {:.2f}".format(m_mean, m_std, a_mean, a_std))
+    print("m = {:.2f} +/- {:.2f}, a = {:.3f} +/- {:.2f}".format(m_mean, m_std, a_mean, a_std))
     xp = np.array([2*c@np.diag(np.sqrt(l))@v for v in [np.array([np.cos(x), np.sin(x)]).T for x in phi]])
-    plt.plot(m_mean + 2*m_std*np.cos(phi), a_mean + 2*a_std*np.sin(phi), 'b--', label=r"Uncorrelated Gaussian")
-    plt.plot(m_mean + xp[:,0], a_mean + xp[:,1], 'r-', label=r"Full Gaussian")
-    plt.plot(m_mean+2*m_std*np.array([1,1,-1,-1,1]), a_mean+2*a_std*np.array([1,-1,-1,1,1]), 'k:', label=r"`Box method'")
+    plt.plot(foo(m_mean + 2*m_std*np.cos(phi)), a_mean + 2*a_std*np.sin(phi), 'b--', label=r"Uncorrelated Gaussian")
+    plt.plot(foo(m_mean + xp[:,0]), a_mean + xp[:,1], 'r-', label=r"Full Gaussian")
+    plt.plot(foo(m_mean+2*m_std*np.array([1,1,-1,-1,1])), a_mean+2*a_std*np.array([1,-1,-1,1,1]), 'k:', label=r"`Box method'")
     plt.ylim(ylims)
     plt.xlim(xlims)
     plt.xlabel(r"Black hole mass [$M_\odot$]")
@@ -119,7 +123,7 @@ def plot_m_a(m, a, label='', bfit=None, xlims=[5,25], ylims=[0,1]):
         plt.tight_layout()
         plt.savefig("figures/"+label+".pdf", backend='pgf')
     else:
-        plt.text(0.95*xlims[1], 0.1, label, ha='right', va='center')
+        plt.text(0.95*foo(xlims[1]), 0.1, label, ha='right', va='center')
     plt.show()
 
 # TfL Colours (https://content.tfl.gov.uk/tfl-colour-standard-issue-08.pdf)
