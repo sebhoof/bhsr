@@ -97,8 +97,12 @@ def sci_format(x):
 ## Specific plotting functions
 def plot_m_a(m, a, label='', bfit=None, xlims=[5,25], ylims=[0,1], lgm=False):
     phi = np.linspace(0, 2*np.pi, 100)
-    m_mean, a_mean = np.mean(m), np.mean(a)
-    m_std, a_std = np.std(m), np.std(a)
+    if lgm:
+        m_mean = np.median(m)
+        m_std = 0.5*np.diff(np.percentile(m, [84,16]))[0]
+    else:
+        m_mean, m_std = np.mean(m), np.std(m)
+    a_mean, a_std = np.mean(a), np.std(a)
     cov = np.cov((m,a))
     l, c = np.linalg.eig(cov)
     foo = lambda x : x
