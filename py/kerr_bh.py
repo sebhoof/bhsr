@@ -117,7 +117,7 @@ def t_infall(mu: float, mbh: float, n: int = 2) -> float:
    Parameters:
       mu (float): Boson mass in eV.
       mbh (float): Black hole mass in Msol.
-      n (int): Principal quantum number.
+      n (int): Principal quantum number (default: 2).
 
    Returns:
       float: The approximate boson could infall time in years.

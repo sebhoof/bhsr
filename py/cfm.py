@@ -6,11 +6,8 @@ from numba import njit
 import numpy as np
 
 from qnm.angular import sep_consts
-# from scipy.optimize import differential_evolution, root, root_scalar
-# from scipy.optimize import minimize_scalar
 from .constants import *
 from .kerr_bh import rg
-# from .bhsr import *
 
 
 # Approximation for the eigenvalues of the spin-weighted spheroidal(!) functions
@@ -125,9 +122,27 @@ def angular_ev(omega: complex, mbh: float, astar: float, mu: float, l: int, m: i
       return np.sort(sep_consts(s=0, c=c, m=m, l_max=l))[-1]
    return alm_approx(c, l, m, s=0)
 
-# Auxiliary functions in Eqs (40)--(44)
 @njit("UniTuple(complex128, 7)(complex128, float64, float64, float64, complex128, uint8)")
 def cfunctions(omega: complex, mbh: float, astar: float, mu: float, alm: complex, m: int) -> tuple[complex, ...]:
+   """
+   Computes numerical coefficients for the continued fraction method.
+
+   Parameters:
+      omega (complex): The frequency of the perturbation in eV.
+      mbh (float): Black hole mass in Msol.
+      astar (float): Dimensionless black hole spin parameter.
+      mu (float): Boson mass in eV.
+      alm (complex): The eigenvalue of the angular equation \f$\mathcal{A}_{nlm}\f$.
+      m (int): Azimuthal quantum number.
+   
+   Returns:
+      tuple[complex]: The numerical coefficients for the continued fraction method.
+   
+   Notes:
+      - Eqs (40)-44 in https://arxiv.org/pdf/0705.2880.pdf
+      - The \f$\mathcal{A}_{nlm}\f$ should be computed using the `angular_ev` function to allow 
+        for optimisation with numba.
+   """
    a = astar
    a2 = a*a
    b = np.sqrt(1 - a2)
@@ -154,24 +169,80 @@ def cfunctions(omega: complex, mbh: float, astar: float, mu: float, alm: complex
    c4 = z2*z2 + 2j*z2*(om - x)
    return c0, c1, c2, c3, c4, cN1, cN2
 
-# Auxiliary functions in Eqs (37)--(39)
-
 @njit("complex128(uint8, complex128)")
 def alpha_n(n: int, c0: complex) -> complex:
+   """
+   The \f$\alpha_n\f$ coefficients in the continued fraction.
+
+   Parameters:
+      n (int): The index of the coefficient.
+      d0 (complex): The \f$c_0\f$ coefficient.
+
+   Returns:
+      complex: The \f$\alpha_n\f$ coefficient.
+
+   Notes:
+      - Eq. (37) in https://arxiv.org/pdf/0705.2880.pdf
+   """
    return n*n + (c0 + 1)*n + c0
 
 @njit("complex128(uint8, complex128, complex128)")
-def beta_n(n: int, c1: complex, c3: complex) -> complex:
-   return -2*n*n + (c1 + 2)*n + c3
+def beta_n(n: int, d1: complex, d3: complex) -> complex:
+   """
+   The \f$\beta_n\f$ coefficients in the continued fraction.
+
+   Parameters:
+      n (int): The index of the coefficient.
+      d1 (complex): The \f$c_1\f$ coefficient.
+      d3 (complex): The \f$c_3\f$ coefficient.
+
+   Returns:
+      complex: The \f$\beta_n\f$ coefficient.
+
+   Notes:
+      - Eq. (38) in https://arxiv.org/pdf/0705.2880.pdf
+   """
+   return -2*n*n + (d1 + 2)*n + d3
 
 @njit("complex128(uint8, complex128, complex128)")
 def gamma_n(n: int, c2: complex, c4: complex) -> complex:
+   """
+   The \f$\gamma_n\f$ coefficients in the continued fraction.
+
+   Parameters:
+      n (int): The index of the coefficient.
+      c2 (complex): The \f$c_2\f$ coefficient.
+      c4 (complex): The \f$c_4\f$ coefficient.
+
+   Returns:
+      complex: The \f$\gamma_n\f$ coefficient.
+
+   Notes:
+      - Eq. (39) in https://arxiv.org/pdf/0705.2880.pdf
+   """ 
    return n*n + (c2 - 3)*n + c4
 
 @njit
 def continued_fraction(omega: complex, mbh: float, astar: float, mu: float, alm: complex, m: int, nmax: int = 2000) -> complex:
-   # Set the residual terms to zero
-   # For alternatives, see Sec. II C in https://arxiv.org/pdf/1410.7698.pdf
+   """
+   Compute the continued fraction equation, whose complex roots are the frequencies.
+
+   Parameters:
+      omega (complex): The frequency of the perturbation in eV.
+      mbh (float): Black hole mass in Msol.
+      astar (float): Dimensionless black hole spin parameter.
+      mu (float): Boson mass in eV.
+      alm (complex): The eigenvalue of the angular equation \f$\mathcal{A}_{nlm}\f$.
+      m (int): Azimuthal quantum number.
+      nmax (int, optional): The maximum number of iterations (default: 2000).
+   
+   Returns:
+      complex: The value of the continued fraction equation.
+
+   Notes:
+      - Eq. (48) in https://arxiv.org/pdf/0705.2880.pdf
+      - We set the residual terms \f$f_N\f$ to zero; see Sec. II C in https://arxiv.org/pdf/1410.7698.pdf for alternatives.
+   """
    c0, c1, c2, c3, c4, cN1, cN2 = cfunctions(omega, mbh, astar, mu, alm, m)
    fr = (-1+0j) + cN1/np.sqrt(nmax) + cN2/nmax # Improved residual term
    # fr = 0+0j
@@ -191,11 +262,42 @@ def continued_fraction(omega: complex, mbh: float, astar: float, mu: float, alm:
    # return np.array([beta_0.real/fr.real - 1.0, beta_0.imag/fr.imag - 1.0])
 
 def root_equation(omega: complex, mbh: float, astar: float, mu: float, l: int, m: int) -> float:
+   """
+   Helper function for the root equation
+
+   Parameters:
+      omega (complex): The frequency of the perturbation in eV.
+      mbh (float): Black hole mass in Msol.
+      astar (float): Dimensionless black hole spin parameter.
+      mu (float): Boson mass in eV.
+      l (int): Orbital angular momentum quantum number.
+      m (int): Azimuthal quantum number.
+   
+   Returns:
+      float: The value of the root equation.
+   
+   Notes:
+      - This wrapper allows continued_fraction(...) to be optimised with numba.
+   """
    alm = angular_ev(omega, mbh, astar, mu, l, m)
    z = continued_fraction(omega, mbh, astar, mu, alm, m)
    return np.log(z+1)
 
 def min_equation(x: list[float, float], mbh: float, astar: float, mu: float, l: int, m: int) -> float:
+   """
+   Wrapper function for the root-finding algorithm.
+
+   Parameters:
+      x (list[float, float]): The real and imaginary parts of the frequency.
+      mbh (float): Black hole mass in Msol.
+      astar (float): Dimensionless black hole spin parameter.
+      mu (float): Boson mass in eV.
+      l (int): Orbital angular momentum quantum number.
+      m (int): Azimuthal quantum number.
+   
+   Returns:
+      float: The value of the root equation.
+   """
    omega = x[0] + 1j*x[1]
    z = root_equation(omega, mbh, astar, mu, l, m)
    # return np.abs(z)
