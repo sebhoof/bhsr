@@ -2,9 +2,12 @@
 
 <em><font size="4">A Python library for calculating BHSR rates and constraining the properties of ultralight bosons.</font></em>
 
-Developers: Sebastian Hoof\
-Maintainer: [Sebastian Hoof](mailto:s.hoof.physics@gmail.com)\
-License: BSD 3-clause license, see [LICENSE](LICENSE) for details.
+|||
+| :--- | :--- |
+| Developer(s) | Sebastian Hoof |
+| Maintainer(s) | [Sebastian Hoof](mailto:s.hoof.physics@gmail.com) |
+| License | BSD 3-clause license, see [LICENSE](LICENSE) for details |
+|||
 
 ## Results
 
@@ -44,4 +47,3 @@ We (re-)distribute posterior samples from BH data and external code, which need 
 | --- | --- |
 | M33 X-7 | [[arXiv:xxxx.xxxxx]](https://arxiv.org/abs/xxxx.xxxxx) |
 | IRAS 09149-6206 | [[arXiv:xxxx.xxxxx]](https://arxiv.org/abs/xxxx.xxxxx) |
-||
