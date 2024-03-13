@@ -6,15 +6,19 @@ import warnings
 import numpy as np
 
 from fractions import Fraction
-from math import factorial, prod
-from numba import jit
+from iminuit import Minuit
+from math import factorial
+from numba import njit
 from scipy.optimize import root_scalar
 from scipy.special import gamma
 from superrad.ultralight_boson import UltralightBoson
+from .cfm import *
 from .constants import *
 from .kerr_bh import *
 
-@jit(nopython=True, cache=True)
+## Energy levels
+
+@njit("float64(float64, float64, uint8)")
 def omegaLO(mu: float, mbh: float, n: int) -> float:
     """
     Calculates the leading-order frequency of the superradiant mode for a given set of quantum numbers |n,l,m>.
@@ -32,7 +36,7 @@ def omegaLO(mu: float, mbh: float, n: int) -> float:
     x = alpha(mu, mbh)/n
     return mu*(1.0 - 0.5*x*x)
 
-@jit(nopython=True, cache=True)
+@njit("float64(float64, float64, float64, uint8, uint8, int16)")
 def omegaHyperfine(mu: float, mbh: float, astar: float, n: int, l: int, m: int) -> float:
     """
     Calculates the  hyperfine frequency of the superradiant mode for a given set of quantum numbers quantum numbers |n,l,m>.
@@ -57,7 +61,9 @@ def omegaHyperfine(mu: float, mbh: float, astar: float, n: int, l: int, m: int) 
     hyperfine = 8.0*m*n*n*astar/(l*(2*l+1)*(2*l+2))
     return mu*(1.0 - 0.5*x2 + fine*x4 + hyperfine*x*x4)
 
-def c_nl(n: int, l: int) -> Fraction:
+## BHSR rates using the "non-relativistic approximation"
+
+def c_nl_factor(n: int, l: int) -> Fraction:
     """
     Helper function for computing a factor in GammaSR_nlm_nr.
 
@@ -75,8 +81,10 @@ def c_nl(n: int, l: int) -> Fraction:
     y = Fraction(factorial(l), factorial(2*l+1)*factorial(2*l))
     return x*y*y
 
-## BHSR rates using the "non-relativistic approximation"
+# Pre-compute c_nl for 2 <= n < 10 and l < n
+c_nl_float = [[float(c_nl_factor(n,l)) for l in range(1, n)] for n in range(2, 10)]
 
+## BHSR rates using the "non-relativistic approximation"
 def GammaSR_nlm_nr(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, m: int = 1) -> float:
     """
     Calculate the superradiance rate for a bosonic cloud around a Kerr black hole,
@@ -86,7 +94,7 @@ def GammaSR_nlm_nr(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, 
         mu (float): Boson mass in eV.
         mbh (float): Black hole mass in Msol.
         astar (float): Dimensionless black hole spin parameter (astar = a/rg).
-        n (int): Principal quantum number.
+        n (int): Principal quantum number (n < 10 for numerical efficency).
         l (int): Orbital angular momentum quantum number.
         m (int): Magnetic quantum number.
 
@@ -98,16 +106,18 @@ def GammaSR_nlm_nr(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, 
         - Fig. 5 in https://arxiv.org/pdf/1004.3558.pdf
         - The authors of https://arxiv.org/pdf/1004.3558.pdf also use a semi-analytical method (see also https://arxiv.org/pdf/0912.1780.pdf)
     """
+    if not(2 <= n < 10 and l < n):
+        raise ValueError(f"Invalid quantum numbers for GammaSR_nlm_bxzh: |{m:d},{l:d},{m:d}> while only 2 <= n < 10, l < n are supported.")
     al = alpha(mu, mbh)
     x = 1.0 - astar*astar
     murp = al*(1 + np.sqrt(x)) # = mu*rg*rp
     y = m*astar - 2*murp
-    factors = [(k*k)*x + y*y for k in range(1,l+1)]
-    return  mu*y*c_nl(n, l)*prod(factors)*pow(al, 4*l+4)
+    c_nl = c_nl_float[n-2][l-1]
+    factors = np.prod([(k*k)*x + y*y for k in range(1,l+1)], axis=0)
+    return mu*y*c_nl*factors*pow(al, 4*l+4)
 
-## BHSR rates using corrected Dettweiler's formula + relativisitc correction (based on https://arxiv.org/pdf/2201.10941.pdf)
-
-@jit(nopython=True, cache=True)
+## BHSR rates using corrected Dettweiler's formula + relativisitic correction (based on https://arxiv.org/pdf/2201.10941.pdf)
+@njit("float64(float64, float64, uint8)")
 def omega0_bxzh(mu: float, mbh: float, n: int) -> float:
     n2 = n*n
     al = alpha(mu, mbh)
@@ -115,7 +125,7 @@ def omega0_bxzh(mu: float, mbh: float, n: int) -> float:
     x = 2*al2/(n2 + 4*al2 + n*np.sqrt(n2 + 8*al2))
     return mu*np.sqrt(1.0 - x)
 
-@jit(nopython=True, cache=True)
+@njit("float64(float64, float64, uint8)")
 def omega1_bxzh(mu: float, mbh: float, n: int) -> float:
     om0 = omega0_bxzh(mu, mbh, n)
     if om0 > 0:
@@ -132,6 +142,9 @@ def c_nl_bxzh(n: int, l: int) -> Fraction:
     y = Fraction(factorial(l), factorial(2*l+1)*factorial(2*l))
     return x*y*y
 
+# Pre-compute c_nl for 2 <= n < 10 and l < n
+c_nl_bxzh_float = [[float(c_nl_bxzh(n,l)) for l in range(1, n)] for n in range(2, 10)]
+
 def GammaSR_nlm_bxzh(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, m: int = 1) -> float:
     """
     Calculate the superradiance rate for a bosonic cloud around a Kerr black hole,
@@ -143,16 +156,18 @@ def GammaSR_nlm_bxzh(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1
     Notes:
         - Ref.: https://arxiv.org/pdf/2201.10941.pdf
     """
+    if not(n >= 2 and n < 10 and l < n):
+        raise ValueError(f"Invalid quantum numbers for GammaSR_nlm_bxzh: |{n:d},{l:d},{m:d}> while only 2 <= n < 10, l < n are supported.")
     om0 = omega0_bxzh(mu, mbh, n)
     al = alpha(mu, mbh)
     z = pow(al*al*(1.0-om0*om0/(mu*mu)), l+0.5)
     om1 = omega1_bxzh(mu, mbh, n)
-    c_nl = c_nl_bxzh(n, l)
-    x = 1.0-astar*astar
+    c_nl = c_nl_bxzh_float[n-2][l-1]
+    x = 1 - astar*astar
     rp = r_plus(mbh, astar)
     y = m*astar - 2*rp*om0
-    factors = [k*k*x + y*y for k in range(1,l+1)]
-    return y*z*c_nl*prod(factors)*om1
+    factors = np.prod([k*k*x + y*y for k in range(1,l+1)], axis=0)
+    return y*z*c_nl*factors*om1
 
 def gam_pq_bxzh(p: float, q: float, eps: float, n: int, l: int) -> float:
     lp = l + eps
@@ -171,7 +186,7 @@ def gam_pq_bxzh(p: float, q: float, eps: float, n: int, l: int) -> float:
     denom = factorial(n-l-1)*g1*g1*g2*g2*gmix
     return num/denom
 
-def omega_nlm_bxzh(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, m: int = 1) -> float:
+def omega_nlm_bxzh(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, m: int = 1) -> tuple[float, float]:
     om0 = omega0_bxzh(mu, mbh, n)
     om1 = omega1_bxzh(mu, mbh, n)
     al = alpha(mu, mbh)
@@ -195,8 +210,7 @@ def omega_nlm_bxzh(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, 
 ## BHSR rates from superrad Python package
 
 bc0 = UltralightBoson(spin=0, model="relativistic")
-
-def GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, m: int = 1, bc: UltralightBoson = bc0) -> float:
+def GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, m: int = 1, bc: UltralightBoson = bc0) -> float:
     """
     Calculate the superradiance rate for a bosonic cloud around a Kerr black hole,
     using the superrad Python package (https://bitbucket.org/weast/superrad)
@@ -205,6 +219,9 @@ def GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, m: int = 1, bc: Ul
         mu (float): Boson mass in eV.
         mbh (float): Black hole mass in Msol.
         astar (float): Dimensionless black hole spin parameter.
+        n (int): Principal quantum number (only n = 2).
+        l (int): Orbital angular momentum quantum number (only l = m)
+        m (int): Magnetic quantum number (only m = 1, 2)
         bc (UltralightBoson, optional): Type of boson to consider (default: relativistic scalar)
 
     Returns:
@@ -213,6 +230,8 @@ def GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, m: int = 1, bc: Ul
     Notes:
         - Ref.: https://arxiv.org/pdf/2211.03845.pdf
     """
+    if (n!=2) and (l!=m) and (m!=1) and (m!=2):
+        raise ValueError(f"The state |{n:d}{l:d}{m:d}> is currently not supported by SuperRad. Set n = 2 and l = m = 1,2.")
     try:
         """
         evo_type can take values evo_type="full" or evo_type="matched".
@@ -230,9 +249,9 @@ def GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, m: int = 1, bc: Ul
     except ValueError:
         return 0
 
-# Compute spindown rate according to quasi-equilibrium approximation including self-interactions
-# See arXiv:2011.11646 for details
+# Compute spindown rate according to quasi-equilibrium approximation including self-interactions, following [arXiv:2011.11646]
 
+@njit
 def GammaSR_322xBH_211x211(mu: float, mbh: float, astar: float, f: float) -> float:
     """
     Calculates the rate factor that corresponds to the damping rate of forced ocillations in the boson cloud,
@@ -251,8 +270,9 @@ def GammaSR_322xBH_211x211(mu: float, mbh: float, astar: float, f: float) -> flo
         - Ref.: Table I, https://arxiv.org/pdf/2011.11646.pdf
     """
     al = alpha(mu, mbh)
-    return 4.3e-7 * mu*(1.0 + np.sqrt(1.0 - astar*astar))*pow(al, 11)*pow(mP_in_GeV/f, 4)
+    return 4.3e-7 * mu*(1.0 + np.sqrt(1.0-astar*astar))*pow(al, 11)*pow(mP_in_GeV/f, 4)
 
+@njit
 def GammaSR_211xinf_322x322(mu: float, mbh: float, f: float) -> float:
     """
     Calculates the rate factor that corresponds to scalar emissions from the interacting |211> and |322> states
@@ -272,9 +292,7 @@ def GammaSR_211xinf_322x322(mu: float, mbh: float, f: float) -> float:
     al = alpha(mu, mbh)
     return 1.1e-8 * mu*pow(al, 8)*pow(mP_in_GeV/f, 4)
 
-# GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, bc: UltralightBoson, m: int)
-
-def n_eq_211_superrad(mu: float, mbh: float, astar: float, f: float, bc: UltralightBoson = bc0) -> float:
+def n_eq_211(mu: float, mbh: float, astar: float, f: float, sr_function: callable = GammaSR_nlm_bxzh) -> float:
     """
     Calculates the equilibrium occupation number of the |211> state in a self-interacting boson cloud.
 
@@ -283,7 +301,7 @@ def n_eq_211_superrad(mu: float, mbh: float, astar: float, f: float, bc: Ultrali
         mbh (float): Black hole mass in Msol.
         astar (float): Dimensionless black hole spin parameter.
         f (float): Boson decay constant in GeV.
-        bc (UltralightBoson, optional): Type of boson approximation to consider (default: relativistic scalar)
+        sr_rate (function, optional): Superradiance rate function (default: GammaSR_nlm_bxzh).
 
     Returns:
         float: The equilibrium occupation number.
@@ -291,12 +309,12 @@ def n_eq_211_superrad(mu: float, mbh: float, astar: float, f: float, bc: Ultrali
     Notes:
         - Ref.: Eq. (55a) in https://arxiv.org/pdf/2011.11646.pdf
     """
-    sr0 = GammaSR_nlm_superrad(mu, mbh, astar, 1, bc) # From superrad
+    sr0 = sr_function(mu, mbh, astar, 2, 1, 1) # From superrad
     sr_3b22 = GammaSR_322xBH_211x211(mu, mbh, astar, f)
     sr_2i33 = GammaSR_211xinf_322x322(mu, mbh, f)
-    return 2.0*np.sqrt(sr0*sr_2i33/3.0)/sr_3b22
+    return 2*np.sqrt(sr0*sr_2i33/3.0)/sr_3b22
 
-def GammaSR_nlm_eq_superrad(mu: float, mbh: float, astar: float, f: float, bc: UltralightBoson = bc0) -> float:
+def GammaSR_nlm_eq(mu: float, mbh: float, astar: float, invf: float, n: int = 2, l: int = 1, m: int = 1, sr_function: callable = GammaSR_nlm_bxzh) -> float:
     """
     Calculates the effective SR rate of the |211> state in a self-interacting boson cloud.
 
@@ -304,16 +322,21 @@ def GammaSR_nlm_eq_superrad(mu: float, mbh: float, astar: float, f: float, bc: U
         mu (float): Boson mass in eV.
         mbh (float): Black hole mass in Msol.
         astar (float): Dimensionless black hole spin parameter.
-        f (float): Boson decay constant in GeV.
-        bc (UltralightBoson, optional): Type of boson approximation to consider (default: relativistic scalar)
+        invf (float): Inverse of the boson decay constant in GeV.
+        n (int): Principal quantum number (currently only n = 2).
+        l (int): Orbital angular momentum quantum number (currently only l = 1).
+        m (int): Magnetic quantum number (currently only m = 1).
 
     Returns:
         float: The equilibrium occupation number.
     """
-    sr0 = GammaSR_nlm_superrad(mu, mbh, astar, 1, bc) # From superrad
-    neq = n_eq_211_superrad(mu, mbh, astar, f)
+    if n != 2 or l != 1 or m != 1:
+        raise ValueError("Only the |nlm> = |211> level is currently supported by GammaSR_nlm_eq.")
+    sr0 = sr_function(mu, mbh, astar, n, l, m)
+    neq = n_eq_211(mu, mbh, astar, 1/invf, sr_function)
     return neq*sr0
 
+@njit
 def n_max(mbh: float, da: float = 0.1) -> float:
     """
     Calculate the maximum value of the boson occupation number of the superradiant cloud.
@@ -328,20 +351,23 @@ def n_max(mbh: float, da: float = 0.1) -> float:
     Notes:
         - Ref. Eq. (8) in https://arxiv.org/pdf/1411.2263.pdf
     """
-    return 1e76 * (da/0.1) * (mbh/10)**2
+    mbh_rel = mbh/10
+    return 1e76 * (da/0.1) * mbh_rel*mbh_rel
 
-def is_sr_mode(mu, mbh, astar, tbh, n, l, m):
+def is_sr_mode(mu: float, mbh: float, astar: float, tbh: float, n: int, l: int, m: int, sr_function: callable = GammaSR_nlm_nr):
     nm = n_max(mbh)
     inv_t = inv_eVs / (yr_in_s*tbh)
-    res = GammaSR_nlm_nr(mu, mbh, astar, n, l, m) > inv_t*np.log(nm)
+    res = sr_function(mu, mbh, astar, n, l, m) > inv_t*np.log(nm)
     if np.isnan(res):
         res = 0
     return res
 
-def is_sr_mode_min(mu, min_sr_rate, mbh, tbh):
+@njit("boolean(float64, float64, float64)")
+def is_sr_mode_min(mbh: float, tbh: float, min_sr_rate: float) -> bool:
     nm = n_max(mbh)
     inv_t = inv_eVs / (yr_in_s*tbh)
-    return min_sr_rate > inv_t*np.log(nm)
+    res = min_sr_rate > inv_t*np.log(nm)
+    return res
    
 ## Regge slope
 
@@ -373,6 +399,102 @@ def compute_regge_slopes(mu: float, mbh_vals: list[float], states: list[tuple[in
                 temp.append(a_root)
         a_min_vals.append(temp)
     return np.array(a_min_vals)
+
+def find_cf_root(mbh: float, astar: float, mu: float, n: int = 2, l: int = 1, m: int = 1, verbose: bool = False) -> complex:
+   alph = alpha(mu, mbh)
+   omR = omegaHyperfine(mu, mbh, astar, n, l, m)
+   # omI = GammaSR_nlm_nr(mu, mbh, astar, n, l, m)
+   # _, omI = omega_nlm_bxzh(mu, mbh, astar, 2, 1, 1)
+   _, omI = omega_nlm_bxzh(mu, mbh, astar, n, l, m)
+   #om_max = m*omH(mbh, astar)
+   # lgmu = np.log10(mu)
+   if omR > 0 and omI > 0 and alph > 0:
+      # lgomR = np.log10(omR)
+      # lgomI = np.log10(omI)
+      # foo = lambda x0, x1: min_equation([x0, pow(10, x1)], mbh, astar, mu, l, m)
+      """
+      foo = lambda oR, oI: min_equation([oR, oI], mbh, astar, mu, l, m)
+      mnt = Minuit(foo, oR=omR, oI=1.05*omI)
+      # foo = lambda x0, x1: min_equation([x0, x1], mbh, astar, mu, l, m)
+      # res = Minuit(foo, x0=0.9*omR, x1=0.1*omI)
+      # mnt.limits["oR"] = (0.995*omR, min(1.005*omR, om_max))
+      alph = alpha(mu, mbh)
+      factor = 0.5*alph*alph
+      om_lo = mu*(1 - 0.5*factor*( 1.0/((n-1)*(n-1)) + 1.0/(n*n) ))
+      om_hi = min(mu*(1 - factor/(n*n)), om_max)
+      mnt.limits["oR"] = (om_lo, om_hi)
+      # Values informed from Figs 2, 3 of https://arxiv.org/pdf/2201.10941.pdf
+      mnt.limits["oI"] = (0.5*omI, min(3*omI, omR))
+      mnt.tol = 1e-10
+      mnt.fixed["oI"] = True
+      mnt.migrad()
+      mnt.fixed["oR"] = True
+      mnt.fixed["oI"] = False
+      mnt.migrad()
+      om = mnt.values["oR"] + 1j*mnt.values["oI"]
+      """;
+      cost_oR = lambda x: np.log(np.abs(root_equation(x+1j*omI, mbh, astar, mu, l, m)))
+      mR = Minuit(cost_oR, x=omR)
+      mR.tol = 1e-10
+      factor = 0.5*alph*alph
+      om0 = mu*(1 - 0.5*factor*( 1.0/((n-1)*(n-1)) + 1.0/(n*n) ))
+      om1 = mu*(1 - factor/(n*n))
+      mR.limits["x"] = (om0, om1)
+      mR.migrad()
+      cost = lambda x, lgy: np.abs(root_equation(x+1j*pow(10,lgy), mbh, astar, mu, l, m))
+      mRI = Minuit(cost, x=mR.values["x"], lgy=np.log10(omI))
+      mRI.tol = 1e-10
+      mRI.limits["x"] = (om0, om1)
+      mRI.limits["lgy"] = (np.log10(0.7*omI), min(np.log10(10*omI), np.log10(0.1*omR)))
+      mRI.migrad()
+      om = mRI.values["x"] + 1j*pow(10, mRI.values["lgy"])
+      """
+      factor = 0.5*alph*alph
+      om0 = mu*(1 - 0.5*factor*( 1.0/((n-1)*(n-1)) + 1.0/(n*n) ))
+      om1 = omR
+      om2 = mu*(1 - factor/(n*n))
+      #if om_guess > om_hi:
+      #   om_guess = om_hi
+      #   om_hi = mu*(1 - 0.5*factor*( 1.0/(n*n) + 1.0/((n+1)*(n+1)) ))
+      foo = lambda x: min_equation([x, omI], mbh, astar, mu, l, m)
+      try:
+         res = minimize_scalar(foo, bracket=(om0, om1, om2), method='Brent')
+         # res = minimize_scalar(foo, bounds=(om0, om2), method='Bounded')
+         om = res.x
+      except:
+         print(f"Error! mu = {mu:.3e}, alpha = {alph:.3e} | om = ({om0:.3e}, {om1:.3e}, {om2:.3e}), f(z) = ({foo(om0):.3e}, {foo(om1):.3e}, {foo(om2):.3e})")
+         om = omR
+      foo = lambda lgx: min_equation([om, pow(10,lgx)], mbh, astar, mu, l, m)
+      lgomI = np.log10(omI)
+      # foo = lambda x: min_equation([om, x], mbh, astar, mu, l, m)
+      try:
+         res = minimize_scalar(foo, bracket=(lgomI-1, lgomI, lgomI+0.5), method='Brent')
+         # res = minimize_scalar(foo, bounds=(lgomI-0.5, lgomI+1), method='Bounded')
+         # res = minimize_scalar(foo, bracket=(0.1*omI, omI, min(2*omI, om)), method='Brent')
+         # res = minimize_scalar(foo, bounds=(0.1*omI, omI, min(2*omI, om)), method='Brent')
+         om += 1j*pow(10, res.x)
+         # om += 1j*res.x
+      except:
+         # print(f"Error! mu = {mu:.3e}, alpha = {alph:.3e} | lg = ({lgomI-1:.3e}, {lgomI:.3e}, {min(lgomI+1, np.log10(om)):.3e}), f(z) = ({foo(lgomI-1):.3e}, {foo(lgomI):.3e}, {foo(min(lgomI+1, np.log10(om))):.3e})")
+         print(f"Error! mu = {mu:.3e}, alpha = {alph:.3e} | gam = ({0.1*omI:.3e}, {omI:.3e}, {min(2*omI, om):.3e}), f(z) = ({foo(0.1*omI):.3e}, {foo(omI):.3e}, {foo(min(2*omI, om)):.3e})")
+         om += 1j*omI
+      """;
+   else:
+      if verbose:
+         print("Estimates for real or imaginary part of omega are not positive:", om)
+      # foo = lambda x0, x1: min_equation([x0, x1], mbh, astar, mu, l, m)
+      # res = Minuit(foo, x0=omR, x1=omI)
+      # res.limits["x0"] = (0.8*omR, min(mu, 1.25*omR))
+      # res.limits["x1"] = (-mu, 0)
+      # # res.tol = 0
+      # res.migrad()
+      # om = res.values["x0"] + 1j*res.values["x1"]
+      return omR + 1j*omI
+   return om
+
+def GammaSR_nlm_cfm(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1, m: int = 1) -> float:
+    om = find_cf_root(mbh, astar, mu, n, l, m)
+    return om.imag
 
 def compute_regge_slopes_given_rate(mu: float, mbh_vals: list[float], sr_function: callable, inv_tSR: float = inv_tSR) -> np.ndarray:
     """
@@ -416,7 +538,7 @@ def is_box_allowed_211(mu: float, invf: float, bh_data: list[int], sr_function: 
         if (alpha(mu, mm) <= 0.5):
             sr0 = sr_function(mu, mbh, a_m)
             if sr0 > inv_t:
-                sr = sr0*n_eq_211_superrad(mu, mm, a_m, 1/invf)
+                sr = sr0*n_eq_211(mu, mm, a_m, 1/invf)
                 if sr > inv_t:
                     return 0
                 else:

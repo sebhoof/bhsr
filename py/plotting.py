@@ -122,11 +122,12 @@ def plot_m_a(m, a, label='', bfit=None, xlims=[5,25], ylims=[0,1], lgm=False):
     plt.xlim(xlims)
     plt.xlabel(r"Black hole mass [$M_\odot$]")
     plt.ylabel(r"Black hole spin $a_\ast$")
-    plt.legend(frameon=False)
     if label !='':
+        plt.legend(frameon=False, title=label)
         plt.tight_layout()
         plt.savefig("figures/"+label+".pdf", backend='pgf')
     else:
+        plt.legend(frameon=False)
         plt.text(0.95*foo(xlims[1]), 0.1, label, ha='right', va='center')
     plt.show()
 

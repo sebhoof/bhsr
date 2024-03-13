@@ -18,9 +18,11 @@ Msol_in_kg = 1.99841e30 # kg
 Msol_in_eV = Msol_in_kg/eV_per_kg # eV
 mP2_in_eVMsol = mP_in_eV*(mP_in_eV/Msol_in_eV) # eV Msol
 GNewton = 1/mP2_in_eVMsol # eV^-1 Msol^-1
+tHubble_in_yr = 1.45e10 # yr
 tEddington_in_yr = 4e8 # yr
 tSalpeter_in_yr = 4.5e7 # yr
-tSR_in_yr = 0.1*tSalpeter_in_yr # yr
+# Set the SR timescale to be at most the Salpeter timescale
+tSR_in_yr = tSalpeter_in_yr # yr
 yr_in_s = 365.25*24*60*60 # s
 inv_eVyr = inv_eVs/yr_in_s
 inv_tSalpeter = inv_eVyr/tSalpeter_in_yr # eV

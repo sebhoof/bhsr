@@ -11,6 +11,7 @@ from .bhsr import *
 # Ref.: https://arxiv.org/pdf/1411.2263.pdf
 c0_n_bose = 5.0
 
+@njit
 def n_bose(mu: float, invf: float, mbh: float, n: int = 2) -> float:
     """
     Calculates the number of bosons in a black hole superradiant cloud that triggers a bosenova.
@@ -31,6 +32,7 @@ def n_bose(mu: float, invf: float, mbh: float, n: int = 2) -> float:
     x = n*n*(mbh/10)*1.0/(invf*mPred_in_GeV)
     return 1e78*c0_n_bose*x*x/alph**3
 
+@njit
 def bosenova_fcrit(mu: float, mbh: float, n: int = 2) -> float:
     """
     Calculates the critical boson decay constant at which a bosenova in a black hole superradiant cloud
@@ -51,27 +53,25 @@ def bosenova_fcrit(mu: float, mbh: float, n: int = 2) -> float:
     f0 = 2e16 * pow(alpha(mu, mbh)/(0.4*n), 1.5) * np.sqrt( (da0/0.1) * (5.0/c0_n_bose) / n )
     return f0
 
-#def bosenova_check_old(invf, mu, mbh, n=2):
-#    return 1.0/invf > bosenova_f0(mu, mbh, n)
-
-def not_bosenova_is_problem(mu, invf, mbh, a, tbh, n, l, m):
+@njit("boolean(float64, float64, float64, float64, uint8, float64)")
+def not_bosenova_is_problem(mu: float, invf: float, mbh: float, tbh: float, n: int, sr_rate: float) -> bool:
     nm = n_max(mbh)
     nb = n_bose(mu, invf, mbh, n)
     inv_t = inv_eVs / (yr_in_s*tbh)
-    res = GammaSR_nlm_nr(mu, mbh, a, n, l, m) > inv_t*np.log(nb)*(nm/nb)
+    res = sr_rate > inv_t*np.log(nb)*(nm/nb)
     if np.isnan(res):
         res = 0
     return res
 
-def not_bosenova_is_problem_min(mu, min_sr_rate, invf, mbh, tbh, n):
+@njit("boolean(float64, float64, float64, float64, uint8, float64)")
+def not_bosenova_is_problem_min(mu: float, invf: float, mbh: float, tbh: float, n: int, min_sr_rate: float) -> bool:
     nm = n_max(mbh)
     nb = n_bose(mu, invf, mbh, n)
     inv_t = inv_eVs / (yr_in_s*tbh)
     res = min_sr_rate > inv_t*np.log(nb)*(nm/nb)
     return res
 
-states0 = [(ell+1, ell, ell) for ell in range(1,6)]
-def is_box_allowed_bosenova(mu, invf, bh_data, sigma_level=2, states=states0):
+def is_box_allowed_bosenova(mu: float, invf: float, bh_data, states: list[tuple[int,int,int]] = [(ell+1, ell, ell) for ell in range(1,6)], sigma_level: float = 2, sr_function: callable = GammaSR_nlm_nr) -> bool:
     _, tbh, mbh, mbh_err, a, _, a_err_m = bh_data
     # Coservative approach by choosing the shortest BH time scale
     tbh = min(tEddington_in_yr, tbh)
@@ -83,9 +83,10 @@ def is_box_allowed_bosenova(mu, invf, bh_data, sigma_level=2, states=states0):
         for s in states:
             n, l, m = s
             # Check SR condition
-            if (alpha(mu, mm)/l <= 0.5):
-                sr = GammaSR_nlm_nr(mu, mm, a_m, n, l, m)
-                sr_checks.append(is_sr_mode_min(mu, sr, mm, tbh)*not_bosenova_is_problem_min(mu, sr, invf, mm, tbh, n))
+            alph = alpha(mu, mm)
+            if alph/l <= 0.5:
+                srr = sr_function(mu, mm, a_m, n, l, m)
+                sr_checks.append(is_sr_mode_min(mm, tbh, srr)*not_bosenova_is_problem_min(mu, invf, mm, tbh, n, srr))
         if sum(sr_checks) == 0:
             return 0
     return 1

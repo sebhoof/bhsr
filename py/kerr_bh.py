@@ -5,7 +5,7 @@
 import numpy as np
 
 from numba import njit
-from .constants import GNewton, Msol_in_eV
+from .constants import GNewton, inv_eVyr, Msol_in_eV
 
 @njit
 def mbh_in_eV(mbh: float) -> float:
@@ -88,3 +88,42 @@ def omH(mbh: float, astar: float) -> float:
       float: The angular velocity of the event horizon in eV.
    """
    return 0.5*astar/r_plus(mbh, astar)
+
+@njit
+def r_cloud(mu: float, mbh: float, n: int) -> float:
+   """
+   Calculate the approximate boson "could distance" from a BH.
+
+   Parameters:
+      mu (float): Boson mass in eV.
+      mbh (float): Black hole mass in Msol.
+      n (int): Principal quantum number.
+
+   Returns:
+      float: The approximate boson "could distance" in eV^-1.
+
+   Notes:
+      - Ref.: Eq. (4) https://arxiv.org/pdf/1411.2263.pdf
+   """
+   x = n/alpha(mu, mbh)
+   return x*x*rg(mbh)
+
+
+@njit
+def t_infall(mu: float, mbh: float, n: int = 2) -> float:
+   """
+   Calculate the approximate boson could infall time.
+
+   Parameters:
+      mu (float): Boson mass in eV.
+      mbh (float): Black hole mass in Msol.
+      n (int): Principal quantum number.
+
+   Returns:
+      float: The approximate boson could infall time in years.
+   """
+   if n != 2:
+      raise ValueError("Only n = 2 is currently supported.")
+   c_bn = 16.0
+   rc = r_cloud(mu, mbh, n)
+   return c_bn*inv_eVyr*rc
