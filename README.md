@@ -1,2 +1,47 @@
-# bhsr
-Black hole superradiance exclusions of ultralight bosons
+# Black Hole Superradiance for Ultralight Bosons
+
+<em><font size="4">A Python library for calculating BHSR rates and constraining the properties of ultralight bosons.</font></em>
+
+Developers: Sebastian Hoof\
+Maintainer: [Sebastian Hoof](mailto:s.hoof.physics@gmail.com)\
+License: BSD 3-clause license, see [LICENSE](LICENSE) for details.
+
+## Results
+
+Our proposed inference framework, direcly using black hole parameter samples, is currently available on the arXiv as a preprint: [arXiv:24xx.xxxxx].
+
+
+## Installation
+
+
+### Requirements
+
+-  Python interpreter v3.9 (or higher)
+-  Python packages: iminuit, numpy, numba, scipy, superrad, qnm
+
+### Step-by-step guide
+
+1. Install the dependencies into your Python environment via `python -m pip install iminuit numpy numba scipy superrad qnm`
+2. Clone this repo via `git clone https://github.com/sebhoof/bhsr`
+
+
+## Get stared
+We include the simple Jupyter notebook [examples.ipynb](examples.ipynb), which demonstrates a few of the capabilities of our code.
+
+
+## How to cite
+
+**All references mentioned below are can be found in the [references.bib](references.bib) file.**
+You may also consider using the [BibCom tool](https://github.com/sebhoof/bibcom) to generate a list of references from the arXiv numbers or DOIs.
+
+If you wish to *only* cite our code, we still ask you to cite [[arXiv:24xx.xxxxx]](https://arxiv.org/abs/24xx.xxxxx) and link to this Github repo.
+Suffice to say that, sadly, paper citations are still viewed as more important than code citations.
+
+Depending on what parts of the code or repository you use, more works have to be acknowledged.
+We (re-)distribute posterior samples from BH data and external code, which need to be acknowledged accordingly.
+
+| Black hole ID | Reference(s) |
+| --- | --- |
+| M33 X-7 | [[arXiv:xxxx.xxxxx]](https://arxiv.org/abs/xxxx.xxxxx) |
+| IRAS 09149-6206 | [[arXiv:xxxx.xxxxx]](https://arxiv.org/abs/xxxx.xxxxx) |
+||
