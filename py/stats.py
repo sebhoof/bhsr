@@ -6,7 +6,7 @@ import numpy as np
 
 from numba import njit
 from py.bhsr import GammaSR_nlm_bxzh, GammaSR_nlm_eq
-from py.bosenova import not_bosenova_is_problem_min, is_sr_mode_min
+from py.self_interactions import not_bosenova_is_problem_min, is_sr_mode_min
 from py.constants import *
 from py.kerr_bh import alpha
 

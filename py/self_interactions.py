@@ -1,6 +1,6 @@
-###############################
-#  Bosenova-related functions #
-###############################
+###############################################################
+#  Functions to consider the effects of ULB self-interactions #
+###############################################################
 
 import numpy as np
 
@@ -55,6 +55,20 @@ def bosenova_fcrit(mu: float, mbh: float, n: int = 2) -> float:
 
 @njit("boolean(float64, float64, float64, float64, uint8, float64)")
 def not_bosenova_is_problem(mu: float, invf: float, mbh: float, tbh: float, n: int, sr_rate: float) -> bool:
+    """
+    Check if bosenovae do not pose a problem for the parameter constraints.
+
+    Parameters:
+        mu (float): Boson mass in eV.
+        invf (float): Inverse of the boson decay constant in GeV^-1.
+        mbh (float): Black hole mass in Msol.
+        tbh (float): Black hole timescale in yr.
+        n (int): Principal quantum number.
+        sr_rate (float): Superradiance rate in eV.
+
+    Returns:
+        bool: True if bosenovae do not pose a problem for the parameter constraints.
+    """
     nm = n_max(mbh)
     nb = n_bose(mu, invf, mbh, n)
     inv_t = inv_eVs / (yr_in_s*tbh)
@@ -63,6 +77,7 @@ def not_bosenova_is_problem(mu: float, invf: float, mbh: float, tbh: float, n: i
         res = 0
     return res
 
+# TODO: Duplicate function; remove/consolidate.
 @njit("boolean(float64, float64, float64, float64, uint8, float64)")
 def not_bosenova_is_problem_min(mu: float, invf: float, mbh: float, tbh: float, n: int, min_sr_rate: float) -> bool:
     nm = n_max(mbh)
@@ -72,6 +87,20 @@ def not_bosenova_is_problem_min(mu: float, invf: float, mbh: float, tbh: float, 
     return res
 
 def is_box_allowed_bosenova(mu: float, invf: float, bh_data, states: list[tuple[int,int,int]] = [(ell+1, ell, ell) for ell in range(1,6)], sigma_level: float = 2, sr_function: callable = GammaSR_nlm_nr) -> bool:
+    """
+    Check if a configuration is allowed by superradiance and bosenovae, using the `box method`.
+
+    Parameters:
+        mu (float): Boson mass in eV.
+        invf (float): Inverse of the boson decay constant in GeV^-1.
+        bh_data (tuple): Black hole data (tbh, mbh, mbh_err, a, a_err_p, a_err_m).
+        states (list[tuple[int,int,int]]): List of levels \f$|nlm\rangle\f$ (default: all \f$n \leq 5\f$).
+        sigma_level (float): Confidence level for the exclusion (default: 2)
+        sr_function (callable): Superradiance rate function (default: GammaSR_nlm_nr).
+
+    Returns:
+        bool: True if the configuration is allowed by superradiance and bosenovae.
+    """
     _, tbh, mbh, mbh_err, a, _, a_err_m = bh_data
     # Coservative approach by choosing the shortest BH time scale
     tbh = min(tEddington_in_yr, tbh)
