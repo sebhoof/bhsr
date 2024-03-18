@@ -5,8 +5,8 @@
 import numpy as np
 
 from numba import njit
-from py.bhsr import GammaSR_nlm_bxzh, GammaSR_nlm_eq
-from py.self_interactions import not_bosenova_is_problem_min, is_sr_mode_min
+from py.bhsr import GammaSR_nlm_bxzh
+from py.self_interactions import GammaSR_nlm_eq, is_sr_mode_min, not_bosenova_is_problem_min
 from py.constants import *
 from py.kerr_bh import alpha
 
@@ -57,8 +57,9 @@ def p_mc_int_eq(mu: float, invf: float, samples: np.ndarray[(any,2), float], sta
          # Check if SR mode
          if alph/l <= 0.5:
             # Only now (for efficiency) compute BHSR rate and check if it is fast enough
-            sr = GammaSR_nlm_eq(mu, mbh, astar, invf, n, l, m, sr_function)
-            if sr > inv_tbh:
+            srr, srr0 = GammaSR_nlm_eq(mu, mbh, astar, invf, n, l, m, sr_function)
+            # Check if we reach the equilibrium regime, and the equilibrium rate is fast enough
+            if (srr > inv_tbh) and (srr0 > inv_tbh):
                p -= 1
                break
    return p/float(n_samples)

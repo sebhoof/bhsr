@@ -1,6 +1,6 @@
 # Black Hole Superradiance for Ultralight Bosons
 
-<em><font size="4">A Python library for calculating BHSR rates and constraining the properties of ultralight bosons.</font></em>
+<em><font size="4">A Python package and data repo for calculating BHSR rates and constraining the properties of ultralight bosons.</font></em>
 
 <table>
    <tbody>

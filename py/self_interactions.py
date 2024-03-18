@@ -127,7 +127,7 @@ def is_box_allowed_bosenova(mu: float, invf: float, bh_data, states: list[tuple[
 ### Routines for the equilibrium regime
 
 @njit
-def GammaSR_322xBH_211x211(mu: float, mbh: float, astar: float, f: float) -> float:
+def GammaSR_322xBH_211x211(mu: float, mbh: float, astar: float, invf: float) -> float:
     """
     Calculates the rate factor that corresponds to the damping rate of forced ocillations in the boson cloud,
     from the interacting |211> and |322> states and the BH.
@@ -136,7 +136,7 @@ def GammaSR_322xBH_211x211(mu: float, mbh: float, astar: float, f: float) -> flo
         mu (float): Boson mass in eV.
         mbh (float): Black hole mass in Msol.
         astar (float): Dimensionless black hole spin parameter.
-        f (float): Boson decay constant in GeV.
+        invf (float): Inverse boson decay constant in GeV^-1.
 
     Returns:
         float: The rate factor in eV.
@@ -145,10 +145,10 @@ def GammaSR_322xBH_211x211(mu: float, mbh: float, astar: float, f: float) -> flo
         - Ref.: Table I, https://arxiv.org/pdf/2011.11646.pdf
     """
     al = alpha(mu, mbh)
-    return 4.3e-7 * mu*(1.0 + np.sqrt(1.0-astar*astar))*pow(al, 11)*pow(mP_in_GeV/f, 4)
+    return 4.3e-7 * mu*(1.0 + np.sqrt(1.0-astar*astar))*pow(al, 11)*pow(mP_in_GeV*invf, 4)
 
 @njit
-def GammaSR_211xinf_322x322(mu: float, mbh: float, f: float) -> float:
+def GammaSR_211xinf_322x322(mu: float, mbh: float, invf: float) -> float:
     """
     Calculates the rate factor that corresponds to scalar emissions from the interacting |211> and |322> states
     to infinity.
@@ -156,7 +156,7 @@ def GammaSR_211xinf_322x322(mu: float, mbh: float, f: float) -> float:
     Parameters:
         mu (float): Boson mass in eV.
         mbh (float): Black hole mass in Msol.
-        f (float): Boson decay constant in GeV.
+        invf (float): Inverse boson decay constant in GeV^-1.
 
     Returns:
         float: The rate factor in eV.
@@ -165,9 +165,10 @@ def GammaSR_211xinf_322x322(mu: float, mbh: float, f: float) -> float:
         - Ref.: Table I, https://arxiv.org/pdf/2011.11646.pdf
     """
     al = alpha(mu, mbh)
-    return 1.1e-8 * mu*pow(al, 8)*pow(mP_in_GeV/f, 4)
+    return 1.1e-8 * mu*pow(al, 8)*pow(mP_in_GeV*invf, 4)
 
-def n_eq_211(mu: float, mbh: float, astar: float, f: float, sr_function: callable = GammaSR_nlm_bxzh) -> float:
+@njit
+def n_eq_211(mu: float, mbh: float, astar: float, invf: float, sr_0_211: float) -> float:
     """
     Calculates the equilibrium occupation number of the |211> state in a self-interacting boson cloud.
 
@@ -175,8 +176,8 @@ def n_eq_211(mu: float, mbh: float, astar: float, f: float, sr_function: callabl
         mu (float): Boson mass in eV.
         mbh (float): Black hole mass in Msol.
         astar (float): Dimensionless black hole spin parameter.
-        f (float): Boson decay constant in GeV.
-        sr_rate (function, optional): Superradiance rate function (default: GammaSR_nlm_bxzh).
+        invf (float): Inverse boson decay constant in GeV^-1.
+        sr_0_211 (float): Superradiance rate for the |211> level.
 
     Returns:
         float: The equilibrium occupation number.
@@ -184,10 +185,9 @@ def n_eq_211(mu: float, mbh: float, astar: float, f: float, sr_function: callabl
     Notes:
         - Ref.: Eq. (55a) in https://arxiv.org/pdf/2011.11646.pdf
     """
-    sr0 = sr_function(mu, mbh, astar, 2, 1, 1) # From superrad
-    sr_3b22 = GammaSR_322xBH_211x211(mu, mbh, astar, f)
-    sr_2i33 = GammaSR_211xinf_322x322(mu, mbh, f)
-    return 2*np.sqrt(sr0*sr_2i33/3.0)/sr_3b22
+    sr_3b22 = GammaSR_322xBH_211x211(mu, mbh, astar, invf)
+    sr_2i33 = GammaSR_211xinf_322x322(mu, mbh, invf)
+    return 2*np.sqrt(sr_0_211*sr_2i33/3.0)/sr_3b22
 
 def GammaSR_nlm_eq(mu: float, mbh: float, astar: float, invf: float, n: int = 2, l: int = 1, m: int = 1, sr_function: callable = GammaSR_nlm_bxzh) -> float:
     """
@@ -208,8 +208,8 @@ def GammaSR_nlm_eq(mu: float, mbh: float, astar: float, invf: float, n: int = 2,
     if n != 2 or l != 1 or m != 1:
         raise ValueError("Only the |nlm> = |211> level is currently supported by GammaSR_nlm_eq.")
     sr0 = sr_function(mu, mbh, astar, n, l, m)
-    neq = n_eq_211(mu, mbh, astar, 1/invf, sr_function)
-    return neq*sr0
+    neq = n_eq_211(mu, mbh, astar, invf, sr0)
+    return neq*sr0, sr0
 
 def is_box_allowed_211(mu: float, invf: float, bh_data: list[int], sr_function: callable, sigma_level: float = 2):
     _, tbh, mbh, mbh_err, a, _, a_err_m = bh_data
