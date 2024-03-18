@@ -89,6 +89,7 @@ def omH(mbh: float, astar: float) -> float:
    """
    return 0.5*astar/r_plus(mbh, astar)
 
+# TODO: -> (3n^2 - l*(l+1)) M / (2 mu alpha) ~ n^2 M / alpha^2 for l = n - 1
 @njit
 def r_cloud(mu: float, mbh: float, n: int) -> float:
    """

@@ -10,11 +10,9 @@ from .bhsr import *
 
 ### Routines for bosenovae
 
-# Constant obtained from numerical simulations for computing n_bose()
-# Ref.: https://arxiv.org/pdf/1411.2263.pdf
 c0_n_bose = 5.0
 
-@njit
+@njit("float64(float64, float64, float64, uint8)")
 def n_bose(mu: float, invf: float, mbh: float, n: int = 2) -> float:
     """
     Calculates the number of bosons in a black hole superradiant cloud that triggers a bosenova.
@@ -29,7 +27,7 @@ def n_bose(mu: float, invf: float, mbh: float, n: int = 2) -> float:
         float: Number of bosons in the superradiant cloud.
 
     Notes:
-        - Ref.: Eq. (9) in https://arxiv.org/pdf/1411.2263.pdf
+        - Ref.: Eq. (9) in https://arxiv.org/pdf/1411.2263.pdf, derived from https://arxiv.org/pdf/1203.5070.pdf
     """
     alph = alpha(mu, mbh)
     x = n*n*(mbh/10)*1.0/(invf*mPred_in_GeV)
@@ -74,19 +72,10 @@ def not_bosenova_is_problem(mu: float, invf: float, mbh: float, tbh: float, n: i
     """
     nm = n_max(mbh)
     nb = n_bose(mu, invf, mbh, n)
-    inv_t = inv_eVs / (yr_in_s*tbh)
-    res = sr_rate > inv_t*np.log(nb)*(nm/nb)
+    inv_tbh = inv_eVyr/tbh
+    res = sr_rate > inv_tbh*np.log(nb)*(nm/nb)
     if np.isnan(res):
         res = 0
-    return res
-
-# TODO: Duplicate function; remove/consolidate.
-@njit("boolean(float64, float64, float64, float64, uint8, float64)")
-def not_bosenova_is_problem_min(mu: float, invf: float, mbh: float, tbh: float, n: int, min_sr_rate: float) -> bool:
-    nm = n_max(mbh)
-    nb = n_bose(mu, invf, mbh, n)
-    inv_t = inv_eVs / (yr_in_s*tbh)
-    res = min_sr_rate > inv_t*np.log(nb)*(nm/nb)
     return res
 
 def is_box_allowed_bosenova(mu: float, invf: float, bh_data, states: list[tuple[int,int,int]] = [(ell+1, ell, ell) for ell in range(1,6)], sigma_level: float = 2, sr_function: callable = GammaSR_nlm_nr) -> bool:
@@ -107,7 +96,7 @@ def is_box_allowed_bosenova(mu: float, invf: float, bh_data, states: list[tuple[
     _, tbh, mbh, mbh_err, a, _, a_err_m = bh_data
     # Coservative approach by choosing the shortest BH time scale
     tbh = min(tEddington_in_yr, tbh)
-    mbh_p, mbh_m = mbh+sigma_level*mbh_err, max(0,mbh-sigma_level*mbh_err)
+    mbh_p, mbh_m = mbh+sigma_level*mbh_err, max(0, mbh-sigma_level*mbh_err)
     a_m = max(0, a-sigma_level*a_err_m)
     # A configuration is only excluded if sr_checks = [0, 0]
     for mm in np.linspace(mbh_m, mbh_p, 25):
@@ -118,7 +107,7 @@ def is_box_allowed_bosenova(mu: float, invf: float, bh_data, states: list[tuple[
             alph = alpha(mu, mm)
             if alph/l <= 0.5:
                 srr = sr_function(mu, mm, a_m, n, l, m)
-                sr_checks.append(is_sr_mode_min(mm, tbh, srr)*not_bosenova_is_problem_min(mu, invf, mm, tbh, n, srr))
+                sr_checks.append(is_sr_mode(mm, tbh, srr)*not_bosenova_is_problem(mu, invf, mm, tbh, n, srr))
         if sum(sr_checks) == 0:
             return 0
     return 1
@@ -215,7 +204,7 @@ def is_box_allowed_211(mu: float, invf: float, bh_data: list[int], sr_function: 
     _, tbh, mbh, mbh_err, a, _, a_err_m = bh_data
     # Coservative approach by choosing the shortest BH time scale
     tbh = min(tEddington_in_yr, tbh)
-    mbh_p, mbh_m = mbh+sigma_level*mbh_err, max(0,mbh-sigma_level*mbh_err)
+    mbh_p, mbh_m = mbh+sigma_level*mbh_err, max(0, mbh-sigma_level*mbh_err)
     a_m = max(0, a-sigma_level*a_err_m)
     for mm in np.linspace(mbh_m, mbh_p, 25):
         inv_t = inv_eVs / (yr_in_s*tbh)

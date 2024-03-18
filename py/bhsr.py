@@ -250,13 +250,14 @@ def GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, n: int = 2, l: int
         return 0
 
 @njit
-def n_max(mbh: float, da: float = 0.1) -> float:
+def n_max(mbh: float, da: float = 0.1, m: int = 1) -> float:
     """
     Calculate the maximum value of the boson occupation number of the superradiant cloud.
 
     Parameters:
         mbh (float): Black hole mass in Msol.
         da (float, optional): Difference of dimensionless initial and final spin (default: 0.1).
+        m (int, optional): Magnetic quantum number (default: 1).
 
     Returns:
         float: The maximum value of the boson occupation number.
@@ -265,21 +266,15 @@ def n_max(mbh: float, da: float = 0.1) -> float:
         - Ref. Eq. (8) in https://arxiv.org/pdf/1411.2263.pdf
     """
     mbh_rel = mbh/10
-    return 1e76 * (da/0.1) * mbh_rel*mbh_rel
-
-def is_sr_mode(mu: float, mbh: float, astar: float, tbh: float, n: int, l: int, m: int, sr_function: callable = GammaSR_nlm_nr):
-    nm = n_max(mbh)
-    inv_t = inv_eVs / (yr_in_s*tbh)
-    res = sr_function(mu, mbh, astar, n, l, m) > inv_t*np.log(nm)
-    if np.isnan(res):
-        res = 0
-    return res
+    return 1e76 * (da/0.1) * mbh_rel*mbh_rel / m
 
 @njit("boolean(float64, float64, float64)")
-def is_sr_mode_min(mbh: float, tbh: float, min_sr_rate: float) -> bool:
+def is_sr_mode(mbh: float, tbh: float, min_sr_rate: float):
     nm = n_max(mbh)
-    inv_t = inv_eVs / (yr_in_s*tbh)
-    res = min_sr_rate > inv_t*np.log(nm)
+    inv_tbh = inv_eVyr/tbh
+    res = min_sr_rate > inv_tbh*np.log(nm)
+    if np.isnan(res):
+        res = 0
     return res
    
 ## Regge slope
