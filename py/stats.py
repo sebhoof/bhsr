@@ -6,7 +6,7 @@ import numpy as np
 
 from numba import njit
 from py.bhsr import GammaSR_nlm_bxzh
-from py.self_interactions import GammaSR_nlm_eq, is_sr_mode_min, not_bosenova_is_problem_min
+from py.self_interactions import GammaSR_nlm_eq, is_sr_mode, not_bosenova_is_problem
 from py.constants import *
 from py.kerr_bh import alpha
 
@@ -75,8 +75,8 @@ def mc_integration_bosenova(mu: float, invf: float, samples: np.ndarray[(any,2),
          if alph/l <= 0.5:
             # Only now (for efficiency) compute BHSR rate and check if it is fast enough
             srr = sr_function(mu, mbh, astar, n, l, m)
-            check1 = is_sr_mode_min(mbh, tbh, srr)
-            check2 = not_bosenova_is_problem_min(mu, invf, mbh, tbh, n, srr)
+            check1 = is_sr_mode(mbh, tbh, srr)
+            check2 = not_bosenova_is_problem(mu, invf, mbh, tbh, n, srr)
             if check1 and check2:
                p -= 1
                break

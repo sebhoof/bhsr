@@ -33,7 +33,7 @@ def n_bose(mu: float, invf: float, mbh: float, n: int = 2) -> float:
     x = n*n*(mbh/10)*1.0/(invf*mPred_in_GeV)
     return 1e78*c0_n_bose*x*x/alph**3
 
-@njit
+@njit("float64(float64, float64, uint8)")
 def bosenova_fcrit(mu: float, mbh: float, n: int = 2) -> float:
     """
     Calculates the critical boson decay constant at which a bosenova in a black hole superradiant cloud
