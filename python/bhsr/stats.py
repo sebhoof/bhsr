@@ -5,10 +5,10 @@
 import numpy as np
 
 from numba import njit
-from py.bhsr import GammaSR_nlm_bxzh
-from py.self_interactions import GammaSR_nlm_eq, is_sr_mode, not_bosenova_is_problem
-from py.constants import *
-from py.kerr_bh import alpha
+from .bhsr import GammaSR_nlm_bxzh
+from .self_interactions import GammaSR_nlm_eq, is_sr_mode, not_bosenova_is_problem
+from .constants import *
+from .kerr_bh import alpha
 
 @njit
 def cdf_1d(data: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
