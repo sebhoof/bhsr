@@ -107,7 +107,7 @@ def is_box_allowed_bosenova(mu: float, invf: float, bh_data, states: list[tuple[
             alph = alpha(mu, mm)
             if alph/l <= 0.5:
                 srr = sr_function(mu, mm, a_m, n, l, m)
-                sr_checks.append(is_sr_mode(mm, tbh, srr)*not_bosenova_is_problem(mu, invf, mm, tbh, n, srr))
+                sr_checks.append(can_grow_max_cloud(mm, tbh, srr)*not_bosenova_is_problem(mu, invf, mm, tbh, n, srr))
         if sum(sr_checks) == 0:
             return 0
     return 1

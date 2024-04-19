@@ -269,10 +269,10 @@ def n_max(mbh: float, da: float = 0.1, m: int = 1) -> float:
     return 1e76 * (da/0.1) * mbh_rel*mbh_rel / m
 
 @njit("boolean(float64, float64, float64)")
-def is_sr_mode(mbh: float, tbh: float, min_sr_rate: float):
+def can_grow_max_cloud(mbh: float, tbh: float, sr_rate: float):
     nm = n_max(mbh)
     inv_tbh = inv_eVyr/tbh
-    res = min_sr_rate > inv_tbh*np.log(nm)
+    res = sr_rate > inv_tbh*np.log(nm)
     if np.isnan(res):
         res = 0
     return res
