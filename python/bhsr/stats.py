@@ -5,6 +5,7 @@
 import fastkde
 import numpy as np
 
+from arviz import hdi
 from numba import njit
 from .bhsr import GammaSR_nlm_bxzh
 from .self_interactions import can_grow_max_cloud, GammaSR_nlm_eq, not_bosenova_is_problem
@@ -83,8 +84,13 @@ def mc_integration_bosenova(mu: float, invf: float, samples: np.ndarray[(any,2),
                break
    return p/float(n_samples)
 
+def compute_intervals_and_limits(samples, q=0.95):
+   mulim = hdi(samples[:,0], hdi_prob=q, multimodal=True, max_modes=2)
+   flim = hdi(samples[:,1], hdi_prob=q, multimodal=False)
+   return np.sort(mulim, axis=None)[[1,2]], flim[0]
+
 @njit
-def simple_grid_and_hpd(samples: np.ndarray, xlims: np.ndarray[float], ylims: np.ndarray[float], nbins_post: int = 50, nbins_grid: int = 200, thresh: float = 0.05):
+def simple_grid_and_hpd(samples: np.ndarray, xlims: np.ndarray[float], ylims: np.ndarray[float], nbins_post: int = 50, nbins_grid: int = 200, thresh: float = 0.95):
    pdens = []
    nsamples = len(samples[:,0])
    dx = (xlims[-1] - xlims[0])/nbins_post
@@ -98,31 +104,24 @@ def simple_grid_and_hpd(samples: np.ndarray, xlims: np.ndarray[float], ylims: np
          tmp.append(np.sum(sel))
       pdens.append(tmp)
    pdens = np.array(pdens)/nsamples
-   pdens_sorted = np.sort(pdens.flatten())
-   psum, pthresh = 0, 0
-   for i in range(len(pdens_sorted)):
-      pthresh = pdens_sorted[i]
-      psum += pdens_sorted[i]
+   pdens_sorted = -np.sort(-pdens.flatten())
+   psum = 0
+   for p in pdens_sorted:
+      pthresh = p
+      psum += p
       if psum > thresh:
          break
    x0 = [xlims[0] + (i+0.5)*dx for i in range(nbins_post) for _ in range(nbins_post)]
    y0 = [ylims[0] + (j+0.5)*dy for _ in range(nbins_post) for j in range(nbins_post)]
    xi = np.linspace(xlims[0], xlims[1], nbins_grid)
    yi = np.linspace(ylims[0], ylims[1], nbins_grid)
-   return x0, y0, pdens.flatten(), xi, yi, pthresh
+   return x0, y0, pdens, xi, yi, pthresh
 
-def simple_grid_and_hpd_fastkde(samples: np.ndarray, xlims: np.ndarray[float], ylims: np.ndarray[float], nbins_grid: int = -1, thresh: float = 0.05):
-   npts = nbins_grid if nbins_grid > 0 else None
-   kde = fastkde.pdf(samples[:,0], samples[:,1], num_points=npts).data
-   psum, pthresh = 0, 0
-   kde_sorted = np.sort(kde.flatten())
-   for i in range(len(kde_sorted)):
-      pthresh = kde_sorted[i]
-      psum += kde_sorted[i]
-      if psum > thresh:
-         break
-   nyk, nxk = kde.shape
-   print("INFO", kde.shape)
-   xi = np.linspace(xlims[0], xlims[1], nxk)
-   yi = np.linspace(ylims[0], ylims[1], nyk)
-   return xi, yi, kde, pthresh
+def simple_grid_fastkde(samples: np.ndarray, xlims: np.ndarray[float], ylims: np.ndarray[float], nbins_post: int = -1, nbins_grid: int = 200):
+   npts = nbins_post if nbins_post > 0 else None
+   xi = np.linspace(xlims[0], xlims[1], nbins_grid)
+   yi = np.linspace(ylims[0], ylims[1], nbins_grid)
+   ilist = [[x,y] for x in xi for y in yi]
+   zi = fastkde.pdf_at_points(samples[:,0], samples[:,1], list_of_points=ilist, num_points=npts)
+   zi = zi.reshape((nbins_grid, nbins_grid)).T
+   return xi, yi, zi
