@@ -15,6 +15,10 @@
 Details about our proposed inference framework, which directly uses black hole mass and spin posterior samples to contrain ultralight bosons, are currently available on the arXiv as a preprint [arXiv:2405.xxxxx].
 More details to follow after the peer review process.
 
+<!--### Statistical analysis framework
+[![arxiv](https://img.shields.io/badge/arXiv-2405.xxxxx_[hep--ph]-B31B1B.svg?style=flat&logo=arxiv&logoColor=B31B1B)](https://arxiv.org/abs/2405.xxxxx)
+[![mnras](https://img.shields.io/badge/MNRAS-doi:10.xxxxxxxxx-937CB9)](https://doi.org/10.xxxxxxxxx)
+-->
 
 ## Installation
 
@@ -44,5 +48,5 @@ We use BH data and results, and (re-)distribute posterior samples from BH data.
 
 | Black hole name | Samples | Reference(s) |
 | :--- | :--- | :--- |
-| IRAS 09149-6206 | no | [[arXiv:1705.02345]](https://arxiv.org/abs/1705.02345), [[arXiv:2009.08463]](https://arxiv.org/abs/2009.08463), [[arXiv:2009.10734]](https://arxiv.org/abs/2009.08463) |
+| IRAS 09149-6206 | yes | [[arXiv:1705.02345]](https://arxiv.org/abs/1705.02345), [[arXiv:2009.08463]](https://arxiv.org/abs/2009.08463), [[arXiv:2009.10734]](https://arxiv.org/abs/2009.08463) |
 | M33 X-7 | yes | [[arXiv:0803.1834]](https://arxiv.org/abs/0803.1834) |
