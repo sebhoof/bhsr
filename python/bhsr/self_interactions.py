@@ -190,7 +190,7 @@ def GammaSR_nlm_eq(mu: float, mbh: float, astar: float, invf: float, n: int = 2,
       m (int): Magnetic quantum number (currently only m = 1).
 
    Returns:
-      float: The equilibrium occupation number.
+      tuple(float): The equilibrium BHSR rate, the corresponding non-interacting rate (in eV).
    """
    if n != 2 or l != 1 or m != 1:
       raise ValueError("Only the |nlm> = |211> level is currently supported by GammaSR_nlm_eq.")
