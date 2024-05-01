@@ -83,7 +83,7 @@ def is_box_allowed_bosenova(mu: float, invf: float, bh_data, states: list[tuple[
    Parameters:
       mu (float): Boson mass in eV.
       invf (float): Inverse of the boson decay constant in GeV^-1.
-      bh_data (tuple): Black hole data (tbh, mbh, mbh_err, a, a_err_p, a_err_m).
+      bh_data (tuple): Black hole data (bh name, tbh, mbh, mbh_err, a, a_err_p, a_err_m).
       states (list[tuple[int,int,int]]): List of levels \f$|nlm\rangle\f$ (default: all \f$n \leq 5\f$).
       sigma_level (float): Confidence level for the exclusion (default: 2)
       sr_function (callable): Superradiance rate function (default: GammaSR_nlm_nr).
@@ -97,7 +97,7 @@ def is_box_allowed_bosenova(mu: float, invf: float, bh_data, states: list[tuple[
    mbh_p, mbh_m = mbh+sigma_level*mbh_err, max(0, mbh-sigma_level*mbh_err)
    a_m = max(0, a-sigma_level*a_err_m)
    # A configuration is only excluded if sr_checks = [0, 0]
-   for mm in np.linspace(mbh_m, mbh_p, 25):
+   for mm in np.linspace(mbh_m, mbh_p, 50):
       sr_checks = []
       for s in states:
          n, l, m = s

@@ -26,11 +26,11 @@ More details to follow after the peer review process.
 ### Requirements
 
 -  Python interpreter v3.10 (or higher)
--  Python packages: iminuit, numpy, numba, scipy, superrad, qnm
+-  Python packages: iminuit, numba, numpy, qnm, scipy, superrad
 
 ### Step-by-step guide
 
-1. Install the dependencies into your Python environment via `python -m pip install iminuit numpy numba scipy superrad qnm`
+1. Install the dependencies into your Python environment via `python -m pip install iminuit numba numpy qnm scipy superrad`
 2. Clone this repo via `git clone https://github.com/sebhoof/bhsr`
 
 
