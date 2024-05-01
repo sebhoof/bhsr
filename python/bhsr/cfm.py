@@ -2,13 +2,12 @@
 #  Computations of the BHSR rates via the continued fraction method #
 #####################################################################
 
-from numba import njit
 import numpy as np
 
+from numba import njit
 from qnm.angular import sep_consts
 from .constants import *
 from .kerr_bh import rg
-
 
 # Approximation for the eigenvalues of the spin-weighted spheroidal(!) functions
 
@@ -113,8 +112,21 @@ def alm_approx(c: complex , l: int, m: int = 1, s: int = 0) -> complex:
 
 # Compute continued fraction based on arXiv:0705.2880
 
-# Angular eigenvalues for the Teukolsky equation, Eq. (46)
 def angular_ev(omega: complex, mbh: float, astar: float, mu: float, l: int, m: int) -> complex:
+   """
+   Compute the angular eigenvalue of the spin-weighted spheroidal(!) functions.
+
+   Parameters:
+      omega (complex): The frequency of the perturbation in eV.
+      mbh (float): Black hole mass in Msol.
+      astar (float): Dimensionless black hole spin parameter.
+      mu (float): Boson mass in eV.
+      l (int): Orbital angular momentum quantum number.
+      m (int): Azimuthal quantum number.
+
+   Returns:
+      complex: The angular eigenvalue of the spin-weighted spheroidal(!) functions.
+   """
    c = rg(mbh)*astar*np.sqrt(omega*omega - mu*mu)
    if np.abs(c) > 3:
       # Need to use the 'qnm' package here
@@ -140,8 +152,7 @@ def cfunctions(omega: complex, mbh: float, astar: float, mu: float, alm: complex
    
    Notes:
       - Eqs (40)-44 in https://arxiv.org/pdf/0705.2880.pdf
-      - The \f$\mathcal{A}_{nlm}\f$ should be computed using the `angular_ev` function to allow 
-        for optimisation with numba.
+      - The \f$\mathcal{A}_{nlm}\f$ should be computed using the `angular_ev` function to allow for optimisation with numba.
    """
    a = astar
    a2 = a*a
@@ -245,21 +256,14 @@ def continued_fraction(omega: complex, mbh: float, astar: float, mu: float, alm:
    """
    c0, c1, c2, c3, c4, cN1, cN2 = cfunctions(omega, mbh, astar, mu, alm, m)
    fr = (-1+0j) + cN1/np.sqrt(nmax) + cN2/nmax # Improved residual term
-   # fr = 0+0j
    fr0 = beta_n(0, c1, c3)/alpha_n(0, c0)
    flipped_range = [nmax-i for i in range(nmax)]
-   # for i in np.flip(range(1,nmax+1)):
    for i in flipped_range:
       alph = alpha_n(i, c0)
       beta = beta_n(i, c1, c3)
       gam = gamma_n(i, c2, c4)
       fr = gam/(beta - alph*fr)
-   # return fr0 - fr
    return fr0/fr - 1
-   # return fr/fr0
-   # return fr/beta_0 - (1+0j)
-   # return np.log(beta_0/fr)
-   # return np.array([beta_0.real/fr.real - 1.0, beta_0.imag/fr.imag - 1.0])
 
 def root_equation(omega: complex, mbh: float, astar: float, mu: float, l: int, m: int) -> float:
    """
@@ -300,9 +304,4 @@ def min_equation(x: list[float, float], mbh: float, astar: float, mu: float, l: 
    """
    omega = x[0] + 1j*x[1]
    z = root_equation(omega, mbh, astar, mu, l, m)
-   # return np.abs(z)
-   # return -1/np.abs(z)**2
    return np.abs(z)
-   # z = root_equation(x, mbh, astar, mu, l, m)
-   # return z.imag*z.imag + (z.real - 1)**2
-   # return np.nanmax([-1e10, 2.0*np.log(np.abs(z))])

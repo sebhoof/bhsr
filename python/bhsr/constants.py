@@ -25,3 +25,7 @@ yr_in_s = 365.25*24*60*60 # s
 inv_eVyr = inv_eVs/yr_in_s
 inv_tSalpeter = inv_eVyr/tSalpeter_in_yr # eV
 inv_tSR = inv_eVyr/tSR_in_yr # eV
+
+# Bosenova constants
+# Empircal numerical factor from simulations; see https://arxiv.org/abs/1411.2263
+c0_n_bose = 5.0
