@@ -41,7 +41,7 @@ We include the simple Jupyter notebook [examples.ipynb](examples.ipynb) to demon
 ## How to cite
 
 Even if you wish to *only* cite our code, we still ask you to cite [[arXiv:2405.xxxxx]](https://arxiv.org/abs/2405.xxxxx) and to include a link to this Github repo.
-Suffice to say that, sadly, code citations are still not as recoginsed as paper citations.
+Sadly, code citations are still not widely recognised.
 
 Depending on what parts of the code or repository you use, more works have to be acknowledged.
 We use BH data and results, and (re-)distribute posterior samples from BH data.
