@@ -12,7 +12,7 @@
 
 ## Results
 
-Details about our proposed inference framework, which directly uses black hole mass and spin posterior samples to contrain ultralight bosons, are currently available on the arXiv as a preprint [arXiv:2405.xxxxx].
+Details on our proposed inference framework, which directly uses black hole mass and spin posterior samples to constrain ultralight bosons, can be found in our preprint [arXiv:2405.xxxxx].
 More details to follow after the peer review process.
 
 <!--### Statistical analysis framework
@@ -20,13 +20,14 @@ More details to follow after the peer review process.
 [![mnras](https://img.shields.io/badge/MNRAS-doi:10.xxxxxxxxx-937CB9)](https://doi.org/10.xxxxxxxxx)
 -->
 
-## Installation
+## How to install
 
 
 ### Requirements
 
 -  Python interpreter v3.10 (or higher)
--  Python packages: iminuit, numba, numpy, qnm, scipy, superrad
+-  Python packages iminuit, numba, numpy, qnm, scipy, superrad
+-  _Optional_: Python packages emcee, jupyterlab, matplotlib, tqdm
 
 ### Step-by-step guide
 
@@ -34,8 +35,8 @@ More details to follow after the peer review process.
 2. Clone this repo via `git clone https://github.com/sebhoof/bhsr`
 
 
-## Get stared
-We include the simple Jupyter notebook [examples.ipynb](examples.ipynb) to demonstrate a few of the capabilities of our code.
+## How to get started
+We include the Jupyter notebook [examples.ipynb](examples.ipynb) to demonstrate a few of the capabilities of our code.
 
 
 ## How to cite
@@ -43,10 +44,11 @@ We include the simple Jupyter notebook [examples.ipynb](examples.ipynb) to demon
 Even if you wish to *only* cite our code, we still ask you to cite [[arXiv:2405.xxxxx]](https://arxiv.org/abs/2405.xxxxx) and to include a link to this Github repo.
 Sadly, code citations are still not widely recognised.
 
-Depending on what parts of the code or repository you use, more works have to be acknowledged.
-We use BH data and results, and (re-)distribute posterior samples from BH data.
+We (re-)distribute posterior samples from various BH data sets.
+If you make use of the data included in the `data/` folder, the following works should be cited:
 
 | Black hole name | Samples | Reference(s) |
 | :--- | :--- | :--- |
-| IRAS 09149-6206 | yes | [[arXiv:1705.02345]](https://arxiv.org/abs/1705.02345), [[arXiv:2009.08463]](https://arxiv.org/abs/2009.08463), [[arXiv:2009.10734]](https://arxiv.org/abs/2009.08463) |
-| M33 X-7 | yes | [[arXiv:0803.1834]](https://arxiv.org/abs/0803.1834) |
+| IRAS 09149-6206 | _M_ | [[arXiv:1705.02345]](https://arxiv.org/abs/1705.02345), [[arXiv:2009.08463]](https://arxiv.org/abs/2009.08463) |
+| | _a*_ | [[arXiv:2009.10734]](https://arxiv.org/abs/2009.08463) |
+| M33 X-7 | _(M,a*)_ | [[arXiv:0803.1834]](https://arxiv.org/abs/0803.1834) |

@@ -2,10 +2,8 @@
 #  Utility functions for statistics #
 #####################################
 
-import fastkde
 import numpy as np
 
-from arviz import hdi
 from numba import njit
 from .bhsr import GammaSR_nlm_bxzh
 from .self_interactions import can_grow_max_cloud, GammaSR_nlm_eq, not_bosenova_is_problem
@@ -14,6 +12,15 @@ from .kerr_bh import alpha
 
 @njit
 def cdf_1d(data: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+   """
+   Utility function to compute the cumulative distribution function (CDF) of a 1D array of data.
+
+   Parameters:
+      data (np.ndarray): 1D array of samples from the distribution.
+
+   Returns:
+      tuple(np.ndarray, np.ndarray): Sorted array of sample values, the corresponding CDF values.
+   """
    cdf = []
    cdf_sum = 0
    if data.ndim == 1:
@@ -30,6 +37,20 @@ def cdf_1d(data: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
    return avals, cdf
 
 def p_mc_int_no_f(mu: float, samples: np.ndarray[(any,2), float], states: list[tuple[int,int,int]] = [(2,1,1)], tbh: float = tSR_in_yr, sr_function: callable = GammaSR_nlm_bxzh):
+   """
+   Monte Carlo integration to compute the marginal lieklihood of the ultralight boson's existence with Monte Carlo integration.
+   This functions assumes that the boson does not have self-interactions.
+
+   Parameters:
+      mu (float): Boson mass in eV.
+      samples (np.ndarray): Two-dimenstional array of samples from the (M,a*) posterior distribution.
+      states (list[tuple[int,int,int]], optional): List of quantum numbers |n,l,m> to consider (default: [(2,1,1)]).
+      tbh (float, optional): Black hole superradiance timescale in years (default: tSR_in_yr).
+      sr_function (callable, optional): Function to compute the superradiance rate (default: GammaSR_nlm_bxzh).
+
+   Returns:
+      float: Marginal likelihood of the ultralight boson's existence.
+   """
    inv_tbh = inv_eVyr/tbh
    n_samples = len(samples[:,0])
    p = n_samples
@@ -67,6 +88,20 @@ def p_mc_int_eq(mu: float, invf: float, samples: np.ndarray[(any,2), float], sta
    return p/float(n_samples)
 
 def mc_integration_bosenova(mu: float, invf: float, samples: np.ndarray[(any,2), float], states: list[tuple[int,int,int]] = [(2,1,1)], tbh: float = tSR_in_yr, sr_function: callable = GammaSR_nlm_bxzh):
+   """
+   Monte Carlo integration to compute the marginal lieklihood of the ultralight boson's existence with Monte Carlo integration.
+
+   Parameters:
+      mu (float): Boson mass in eV.
+      invf (float): Inverse of the boson decay time in GeV^-1.
+      samples (np.ndarray): Two-dimenstional array of samples from the (M,a*) posterior distribution.
+      states (list[tuple[int,int,int]], optional): List of quantum numbers |n,l,m> to consider (default: [(2,1,1)]).
+      tbh (float, optional): Black hole superradiance timescale in years (default: tSR_in_yr).
+      sr_function (callable, optional): Function to compute the superradiance rate (default: GammaSR_nlm_bxzh).
+
+   Returns:
+      float: Marginal likelihood of the ultralight boson's existence.
+   """
    n_samples = len(samples[:,0])
    p = n_samples
    for mbh, astar in samples:
@@ -84,13 +119,22 @@ def mc_integration_bosenova(mu: float, invf: float, samples: np.ndarray[(any,2),
                break
    return p/float(n_samples)
 
-def compute_intervals_and_limits(samples, q=0.95):
-   mulim = hdi(samples[:,0], hdi_prob=q, multimodal=True, max_modes=2)
-   flim = hdi(samples[:,1], hdi_prob=q, multimodal=False)
-   return np.sort(mulim, axis=None)[[1,2]], flim[0]
-
 @njit
 def simple_grid_and_hpd(samples: np.ndarray, xlims: np.ndarray[float], ylims: np.ndarray[float], nbins_post: int = 50, nbins_grid: int = 200, thresh: float = 0.95):
+   """
+   Aa simple method to analyse 2D posterior samples, providing a grid and thresholds for the highest posterior density (HPD) region for plotting.
+
+   Parameters:
+      samples (np.ndarray): Two-dimensional array of samples from the (M,a*) posterior distribution.
+      xlims (np.ndarray): Array of two floats representing the x-axis limits.
+      ylims (np.ndarray): Array of two floats representing the y-axis limits.
+      nbins_post (int, optional): Number of bins for analysing posterior grid (default: 50).
+      nbins_grid (int, optional): Number of bins for the interpolated grid for plotting (default: 200).
+      thresh (float, optional): Threshold for the HPD region (default: 0.95).
+
+   Returns:
+      tuple(np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, float): Arrays of x and y coordinates, the posterior density grid, the x and y coordinates for the interpolated grid, the HPD threshold.
+   """
    pdens = []
    nsamples = len(samples[:,0])
    dx = (xlims[-1] - xlims[0])/nbins_post
@@ -116,12 +160,3 @@ def simple_grid_and_hpd(samples: np.ndarray, xlims: np.ndarray[float], ylims: np
    xi = np.linspace(xlims[0], xlims[1], nbins_grid)
    yi = np.linspace(ylims[0], ylims[1], nbins_grid)
    return x0, y0, pdens, xi, yi, pthresh
-
-def simple_grid_fastkde(samples: np.ndarray, xlims: np.ndarray[float], ylims: np.ndarray[float], nbins_post: int = -1, nbins_grid: int = 200):
-   npts = nbins_post if nbins_post > 0 else None
-   xi = np.linspace(xlims[0], xlims[1], nbins_grid)
-   yi = np.linspace(ylims[0], ylims[1], nbins_grid)
-   ilist = [[x,y] for x in xi for y in yi]
-   zi = fastkde.pdf_at_points(samples[:,0], samples[:,1], list_of_points=ilist, num_points=npts)
-   zi = zi.reshape((nbins_grid, nbins_grid)).T
-   return xi, yi, zi
