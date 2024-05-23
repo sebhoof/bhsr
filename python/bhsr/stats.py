@@ -5,7 +5,7 @@
 import numpy as np
 
 from numba import njit
-from .bhsr import GammaSR_nlm_bxzh
+from .bhsr import GammaSR_nlm_bxzh, n_fin
 from .self_interactions import can_grow_max_cloud, GammaSR_nlm_eq, not_bosenova_is_problem
 from .constants import *
 from .kerr_bh import alpha
@@ -38,7 +38,7 @@ def cdf_1d(data: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 def p_mc_int_no_f(mu: float, samples: np.ndarray[(any,2), float], states: list[tuple[int,int,int]] = [(2,1,1)], tbh: float = tSR_in_yr, sr_function: callable = GammaSR_nlm_bxzh):
    """
-   Monte Carlo integration to compute the marginal lieklihood of the ultralight boson's existence with Monte Carlo integration.
+   Monte Carlo integration to compute the marginal likelihood of the ULB's presence with Monte Carlo integration.
    This functions assumes that the boson does not have self-interactions.
 
    Parameters:
@@ -60,8 +60,9 @@ def p_mc_int_no_f(mu: float, samples: np.ndarray[(any,2), float], states: list[t
          alph = alpha(mu, mbh)
          # Check if SR mode
          if alph/l <= 0.5:
+            nfi = n_fin(mbh, m=m)
             srr = sr_function(mu, mbh, astar, n, l, m)
-            if srr > inv_tbh:
+            if srr > np.log(nfi)*inv_tbh:
                p -= 1
                break
    return p/float(n_samples)
@@ -79,9 +80,10 @@ def p_mc_int_eq(mu: float, invf: float, samples: np.ndarray[(any,2), float], sta
          # Check if SR mode
          if alph/l <= 0.5:
             # Only now (for efficiency) compute BHSR rate and check if it is fast enough
-            srr, srr0 = GammaSR_nlm_eq(mu, mbh, astar, invf, n, l, m, sr_function)
+            srr, _ = GammaSR_nlm_eq(mu, mbh, astar, invf, n, l, m, sr_function)
+            nfi = n_fin(mbh, m=m)
             # Check if we reach the equilibrium regime, and the equilibrium rate is fast enough
-            if (srr > inv_tbh) and (srr0 > inv_tbh):
+            if srr > np.log(nfi)*inv_tbh:
                p -= 1
                break
    return p/float(n_samples)

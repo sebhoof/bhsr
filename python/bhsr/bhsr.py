@@ -327,9 +327,9 @@ def GammaSR_nlm_superrad(mu: float, mbh: float, astar: float, n: int = 2, l: int
       return 0
 
 @njit
-def n_max(mbh: float, da: float = 0.1, m: int = 1) -> float:
+def n_fin(mbh: float, da: float = 0.1, m: int = 1) -> float:
    """
-   Calculate the maximum value of the boson occupation number of the superradiant cloud.
+   Calculate the threshold value for spin of the boson cloud occupation number for a given spin reduction.
 
    Parameters:
       mbh (float): Black hole mass in Msol.
@@ -347,7 +347,7 @@ def n_max(mbh: float, da: float = 0.1, m: int = 1) -> float:
 
 @njit("boolean(float64, float64, float64)")
 def can_grow_max_cloud(mbh: float, tbh: float, sr_rate: float):
-   nm = n_max(mbh)
+   nm = n_fin(mbh)
    inv_tbh = inv_eVyr/tbh
    res = sr_rate > inv_tbh*np.log(nm)
    if np.isnan(res):
@@ -355,35 +355,6 @@ def can_grow_max_cloud(mbh: float, tbh: float, sr_rate: float):
    return res
    
 ## Regge slope
-
-def compute_regge_slopes(mu: float, mbh_vals: list[float], states: list[tuple[int, int, int]], inv_tSR: float = inv_tSR) -> np.ndarray:
-   """
-   Compute the Regge trajectories for several levels.
-
-   Parameters:
-      mu (float): Boson mass in eV.
-      mbh_vals (list[float]): List of black hole masses in Msol.
-      states (list[tuple[int, int, int]]): List of quantum states (n, l, m).
-      inv_tSR (float, optional): Inverse of the superradiance timescale (default: inv_tSR).
-
-   Returns:
-      np.ndarray: Array of dimensionless black hole spins corresponding to mbh_vals.
-
-   Notes:
-      - The Regge slope is defined as the minimum value of the dimensionless spin parameter 'a' at which the superradiance rate equals the inverse of the superradiance timescale.
-      - Note that the root finding may fail if no Regge slope exists. In this case, we set the corresponding BH spin value = NAN.
-   """
-   a_min_vals = []
-   foo = lambda a, mbh, n, l, m: GammaSR_nlm_nr(mu, mbh, a, n, l, m) - inv_tSR
-   for mbh in mbh_vals:
-      temp = []
-      for s in states:
-         with warnings.catch_warnings(record=True) as w:
-            res = root_scalar(foo, x0=0, x1=0.5, args=(mbh, *s))
-            a_root = res.root if len(w) == 0 else np.nan
-            temp.append(a_root)
-      a_min_vals.append(temp)
-   return np.array(a_min_vals)
 
 def find_cf_root(mbh: float, astar: float, mu: float, n: int = 2, l: int = 1, m: int = 1, verbose: bool = False) -> complex:
    """
@@ -444,7 +415,36 @@ def GammaSR_nlm_cfm(mu: float, mbh: float, astar: float, n: int = 2, l: int = 1,
    om = find_cf_root(mbh, astar, mu, n, l, m)
    return om.imag
 
-def compute_regge_slopes_given_rate(mu: float, mbh_vals: list[float], sr_function: callable, inv_tSR: float = inv_tSR) -> np.ndarray:
+def compute_regge_slopes(mu: float, mbh_vals: list[float], states: list[tuple[int, int, int]], sr_function: callable = GammaSR_nlm_nr, inv_tSR: float = inv_tSR) -> np.ndarray:
+   """
+   Compute the Regge trajectories for several levels.
+
+   Parameters:
+      mu (float): Boson mass in eV.
+      mbh_vals (list[float]): List of black hole masses in Msol.
+      states (list[tuple[int, int, int]]): List of quantum states (n, l, m).
+      inv_tSR (float, optional): Inverse of the superradiance timescale (default: inv_tSR).
+
+   Returns:
+      np.ndarray: Array of dimensionless black hole spins corresponding to mbh_vals.
+
+   Notes:
+      - The Regge slope is defined as the minimum value of the dimensionless spin parameter 'a' at which the superradiance rate equals the inverse of the superradiance timescale.
+      - Note that the root finding may fail if no Regge slope exists. In this case, we set the corresponding BH spin value = NAN.
+   """
+   a_min_vals = []
+   foo = lambda a, mbh, n, l, m: sr_function(mu, mbh, a, n, l, m) - inv_tSR
+   for mbh in mbh_vals:
+      temp = []
+      for s in states:
+         with warnings.catch_warnings(record=True) as w:
+            res = root_scalar(foo, x0=0, x1=0.5, args=(mbh, *s))
+            a_root = res.root if len(w) == 0 else np.nan
+            temp.append(a_root)
+      a_min_vals.append(temp)
+   return np.array(a_min_vals)
+
+def compute_regge_slopes_211(mu: float, mbh_vals: list[float], sr_function: callable, inv_tSR: float = inv_tSR) -> np.ndarray:
    """
    Compute the Regge slopes given a superradiance rate function.
 

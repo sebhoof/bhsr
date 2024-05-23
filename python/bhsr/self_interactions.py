@@ -46,7 +46,7 @@ def bosenova_fcrit(mu: float, mbh: float, n: int = 2) -> float:
       float: Critical boson decay constant in GeV.
 
    Notes:
-      - Computed by equating n_bose() with n_max(da = 0.1)
+      - Computed by equating n_bose() with n_fin(..., da = 0.1)
    """
    da0 = 0.1
    f0 = 2e16 * pow(alpha(mu, mbh)/(0.4*n), 1.5) * np.sqrt( (da0/0.1) * (5.0/c0_n_bose) / n )
@@ -68,7 +68,7 @@ def not_bosenova_is_problem(mu: float, invf: float, mbh: float, tbh: float, n: i
    Returns:
       bool: True if bosenovae do not pose a problem for the parameter constraints.
    """
-   nm = n_max(mbh)
+   nm = n_fin(mbh)
    nb = n_bose(mu, invf, mbh, n)
    inv_tbh = inv_eVyr/tbh
    res = sr_rate > inv_tbh*np.log(nb)*(nm/nb)
@@ -95,7 +95,7 @@ def is_box_allowed_bosenova(mu: float, invf: float, bh_data: list[float], states
    # Coservative approach by choosing the shortest BH time scale
    mbh_p, mbh_m = mbh+sigma_level*mbh_err_p, max(0, mbh-sigma_level*mbh_err_m)
    a_m = max(0, a-sigma_level*a_err_m)
-   for mm in np.linspace(mbh_m, mbh_p, 100):
+   for mm in np.linspace(mbh_m, mbh_p, 50):
       sr_checks = []
       for s in states:
          n, l, m = s
@@ -199,19 +199,16 @@ def GammaSR_nlm_eq(mu: float, mbh: float, astar: float, invf: float, n: int = 2,
    neq = n_eq_211(mu, mbh, astar, invf, sr0)
    return neq*sr0, sr0
 
-def is_box_allowed_211(mu: float, invf: float, bh_data: list[float], sr_function: callable, sigma_level: float = 2):
-   _, tbh, mbh0, mbh_err_p, mbh_err_m, a, _, a_err_m = bh_data
-   # Coservative approach by choosing the shortest BH time scale
-   mbh_p, mbh_m = mbh0+sigma_level*mbh_err_p, max(0, mbh0-sigma_level*mbh_err_m)
-   a_m = max(0, a-sigma_level*a_err_m)
-   inv_t = inv_eVs / (yr_in_s*tbh)
-   mbhs = np.linspace(mbh_m, mbh_p, 100)
-   # Only iterate over SR states (l = 1)
-   for mbh in mbhs[alpha(mu, mbhs) <= 0.5]:
-      srr0 = sr_function(mu, mbh, a_m, 2, 1, 1)
-      srr = srr0
+def is_box_allowed_211(mu: float, invf: float, bh_data: list[float], sr_function: callable):
+   mbh_m, mbh_p, a_m, tbh = bh_data
+   inv_tbh = inv_eVs / (yr_in_s*tbh)
+   check = 2
+   for mbh in [mbh_m, mbh_p]:
+      is_sr = alpha(mu, mbh) <= 0.5
+      nfi = n_fin(mbh)
+      srr = sr_function(mu, mbh, a_m, 2, 1, 1)
       if invf > 0:
-         srr *= n_eq_211(mu, mbh, a_m, invf, srr0)
-      if srr > inv_t and srr0 > inv_t:
-         return 0
-   return 1
+         srr *= n_eq_211(mu, mbh, a_m, invf, srr)
+      if srr > np.log(nfi)*inv_tbh and is_sr:
+         check -= 1
+   return check > 0
