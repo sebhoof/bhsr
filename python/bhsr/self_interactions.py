@@ -76,7 +76,7 @@ def not_bosenova_is_problem(mu: float, invf: float, mbh: float, tbh: float, n: i
       res = 0
    return res
 
-def is_box_allowed_bosenova(mu: float, invf: float, bh_data, states: list[tuple[int,int,int]] = [(ell+1, ell, ell) for ell in range(1,6)], sigma_level: float = 2, sr_function: callable = GammaSR_nlm_nr) -> bool:
+def is_box_allowed_bosenova(mu: float, invf: float, bh_data: list[float], states: list[tuple[int,int,int]] = [(ell+1, ell, ell) for ell in range(1,6)], sigma_level: float = 2, sr_function: callable = GammaSR_nlm_nr) -> bool:
    """
    Check if a configuration is allowed by superradiance and bosenovae, using the `box method`.
 
@@ -91,13 +91,11 @@ def is_box_allowed_bosenova(mu: float, invf: float, bh_data, states: list[tuple[
    Returns:
       bool: True if the configuration is allowed by superradiance and bosenovae.
    """
-   _, tbh, mbh, mbh_err, a, _, a_err_m = bh_data
+   _, tbh, mbh, mbh_err_p, mbh_err_m, a, _, a_err_m = bh_data
    # Coservative approach by choosing the shortest BH time scale
-   tbh = min(4e7, tbh)
-   mbh_p, mbh_m = mbh+sigma_level*mbh_err, max(0, mbh-sigma_level*mbh_err)
+   mbh_p, mbh_m = mbh+sigma_level*mbh_err_p, max(0, mbh-sigma_level*mbh_err_m)
    a_m = max(0, a-sigma_level*a_err_m)
-   # A configuration is only excluded if sr_checks = [0, 0]
-   for mm in np.linspace(mbh_m, mbh_p, 50):
+   for mm in np.linspace(mbh_m, mbh_p, 100):
       sr_checks = []
       for s in states:
          n, l, m = s
@@ -105,7 +103,10 @@ def is_box_allowed_bosenova(mu: float, invf: float, bh_data, states: list[tuple[
          alph = alpha(mu, mm)
          if alph/l <= 0.5:
             srr = sr_function(mu, mm, a_m, n, l, m)
-            sr_checks.append(can_grow_max_cloud(mm, tbh, srr)*not_bosenova_is_problem(mu, invf, mm, tbh, n, srr))
+            check = can_grow_max_cloud(mm, tbh, srr)
+            if invf > 0:
+               check *= not_bosenova_is_problem(mu, invf, mm, tbh, n, srr)
+            sr_checks.append(check)
       if sum(sr_checks) == 0:
          return 0
    return 1
@@ -198,23 +199,19 @@ def GammaSR_nlm_eq(mu: float, mbh: float, astar: float, invf: float, n: int = 2,
    neq = n_eq_211(mu, mbh, astar, invf, sr0)
    return neq*sr0, sr0
 
-def is_box_allowed_211(mu: float, invf: float, bh_data: list[int], sr_function: callable, sigma_level: float = 2):
-   _, tbh, mbh, mbh_err, a, _, a_err_m = bh_data
+def is_box_allowed_211(mu: float, invf: float, bh_data: list[float], sr_function: callable, sigma_level: float = 2):
+   _, tbh, mbh0, mbh_err_p, mbh_err_m, a, _, a_err_m = bh_data
    # Coservative approach by choosing the shortest BH time scale
-   tbh = min(4e7, tbh)
-   mbh_p, mbh_m = mbh+sigma_level*mbh_err, max(0, mbh-sigma_level*mbh_err)
+   mbh_p, mbh_m = mbh0+sigma_level*mbh_err_p, max(0, mbh0-sigma_level*mbh_err_m)
    a_m = max(0, a-sigma_level*a_err_m)
-   for mm in np.linspace(mbh_m, mbh_p, 25):
-      inv_t = inv_eVs / (yr_in_s*tbh)
-      # Check SR condition (l = 1)
-      if (alpha(mu, mm) <= 0.5):
-         sr0 = sr_function(mu, mbh, a_m)
-         if sr0 > inv_t:
-            sr = sr0*n_eq_211(mu, mm, a_m, 1/invf)
-            if sr > inv_t:
-               return 0
-            else:
-               return 1
-         else:
-            return 1
+   inv_t = inv_eVs / (yr_in_s*tbh)
+   mbhs = np.linspace(mbh_m, mbh_p, 100)
+   # Only iterate over SR states (l = 1)
+   for mbh in mbhs[alpha(mu, mbhs) <= 0.5]:
+      srr0 = sr_function(mu, mbh, a_m, 2, 1, 1)
+      srr = srr0
+      if invf > 0:
+         srr *= n_eq_211(mu, mbh, a_m, invf, srr0)
+      if srr > inv_t and srr0 > inv_t:
+         return 0
    return 1

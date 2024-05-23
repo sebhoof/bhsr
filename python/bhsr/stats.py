@@ -60,7 +60,6 @@ def p_mc_int_no_f(mu: float, samples: np.ndarray[(any,2), float], states: list[t
          alph = alpha(mu, mbh)
          # Check if SR mode
          if alph/l <= 0.5:
-            # Only now (for efficiency) compute BHSR rate and check if it is fast enough
             srr = sr_function(mu, mbh, astar, n, l, m)
             if srr > inv_tbh:
                p -= 1
