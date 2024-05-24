@@ -6,7 +6,7 @@ import numpy as np
 
 from numba import njit
 from .bhsr import GammaSR_nlm_bxzh, n_fin
-from .self_interactions import can_grow_max_cloud, GammaSR_nlm_eq, not_bosenova_is_problem
+from .self_interactions import *
 from .constants import *
 from .kerr_bh import alpha
 
@@ -80,10 +80,10 @@ def p_mc_int_eq(mu: float, invf: float, samples: np.ndarray[(any,2), float], sta
          # Check if SR mode
          if alph/l <= 0.5:
             # Only now (for efficiency) compute BHSR rate and check if it is fast enough
-            srr, _ = GammaSR_nlm_eq(mu, mbh, astar, invf, n, l, m, sr_function)
+            srr, srr0 = GammaSR_nlm_eq(mu, mbh, astar, invf, n, l, m, sr_function)
             nfi = n_fin(mbh, m=m)
             # Check if we reach the equilibrium regime, and the equilibrium rate is fast enough
-            if srr > np.log(nfi)*inv_tbh:
+            if srr > inv_tbh and srr0 > np.log(nfi)*inv_tbh:
                p -= 1
                break
    return p/float(n_samples)
@@ -114,7 +114,7 @@ def mc_integration_bosenova(mu: float, invf: float, samples: np.ndarray[(any,2),
             # Only now (for efficiency) compute BHSR rate and check if it is fast enough
             srr = sr_function(mu, mbh, astar, n, l, m)
             check1 = can_grow_max_cloud(mbh, tbh, srr)
-            check2 = not_bosenova_is_problem(mu, invf, mbh, tbh, n, srr)
+            check2 = not_bosenova_is_problem(mu, invf, mbh, tbh, n, m, srr)
             if check1 and check2:
                p -= 1
                break
@@ -161,3 +161,75 @@ def simple_grid_and_hpd(samples: np.ndarray, xlims: np.ndarray[float], ylims: np
    xi = np.linspace(xlims[0], xlims[1], nbins_grid)
    yi = np.linspace(ylims[0], ylims[1], nbins_grid)
    return x0, y0, pdens, xi, yi, pthresh
+
+def is_box_allowed_211(mu: float, invf: float, bh_data: list[float], sr_function: callable = GammaSR_nlm_bxzh) -> bool:
+   """
+   Check if a n ULB model \f$(\mu, f^{-1})\f$ is allowed by superradiance, using the "box method".
+
+   Parameters:
+      mu (float): Boson mass in eV.
+      invf (float): Inverse of the boson decay constant in GeV^-1.
+      bh_data (list[float]): Black hole data (mbh_m, mbh_p, a_m, tbh).
+      sr_function (callable): Superradiance rate function (default: GammaSR_nlm_bxzh).
+
+   Returns:
+      bool: True if the configuration is allowed by superradiance.
+
+   Notes:
+      - This function only considers the |211> level.
+      - Setting invf = -1 will neglect self-interactions.
+      - We only allow for the equilibrium when self-interactions are considered.
+   """
+   mbh_m, mbh_p, a_m, tbh = bh_data
+   inv_tbh = inv_eVs / (yr_in_s*tbh)
+   points_below_the_regge_trajectory = 2
+   for mbh in [mbh_m, mbh_p]:
+      is_sr = alpha(mu, mbh) <= 0.5
+      nfi = n_fin(mbh)
+      srr = sr_function(mu, mbh, a_m, 2, 1, 1)
+      if invf > 0:
+         srr *= n_eq_211(mu, mbh, a_m, invf, srr)
+      if srr > np.log(nfi)*inv_tbh and is_sr:
+         points_below_the_regge_trajectory -= 1
+   return points_below_the_regge_trajectory > 0
+
+def is_box_allowed(mu: float, invf: float, bh_data: list[float], states: list[tuple[int,int,int]] = [(ell+1, ell, ell) for ell in range(1,6)], sr_function: callable = GammaSR_nlm_bxzh, assume_bosenova: bool = False) -> bool:
+   """
+   Check if a configuration is allowed by superradiance and bosenovae, using the `box method`.
+
+   Parameters:
+      mu (float): Boson mass in eV.
+      invf (float): Inverse of the boson decay constant in GeV^-1.
+      bh_data (tuple): Black hole data (bh name, tbh, mbh, mbh_err, a, a_err_p, a_err_m).
+      states (list[tuple[int,int,int]]): List of levels \f$|nlm\rangle\f$ (default: all states with \f$n \leq 6\f$).
+      sr_function (callable): Superradiance rate function (default: GammaSR_nlm_bxzh).
+      assume_bosenova (bool): Check if assume that a bosenove happens (default: False).
+
+   Returns:
+      bool: True if the configuration is allowed by superradiance and bosenovae.
+   """
+   if states == [(2,1,1)]:
+      return is_box_allowed_211(mu, invf, bh_data, sr_function)
+   mbh_m, mbh_p, a_m, tbh = bh_data
+   inv_tbh = inv_eVs / (yr_in_s*tbh)
+   # Iterate over the black hole mass range to find points below the minimum of the Regge trajectories
+   for mbh in np.linspace(mbh_m, mbh_p, 100):
+      for s in states:
+         above_regge_trajectory = []
+         n, l, m = s
+         # Check SR condition
+         if alpha(mu, mbh)/l <= 0.5:
+            srr = sr_function(mu, mbh, a_m, n, l, m)
+            nfi = n_fin(mbh, m=m)
+            if invf > 0:
+               if assume_bosenova:
+                  srr /= eta_bn(mu, invf, mbh, n, m)
+               else:
+                  srr *= n_eq_211(mu, mbh, a_m, invf, srr)
+            check = srr > np.log(nfi)*inv_tbh
+            above_regge_trajectory.append(check)
+      if all(above_regge_trajectory):
+         continue
+      else:
+         return 1
+   return 0

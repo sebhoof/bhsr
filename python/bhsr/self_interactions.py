@@ -8,7 +8,7 @@ from .constants import *
 from .kerr_bh import *
 from .bhsr import *
 
-### Routines for bosenovae
+### Routines for the bosenova scenario.
 
 @njit("float64(float64, float64, float64, uint8)")
 def n_bose(mu: float, invf: float, mbh: float, n: int = 2) -> float:
@@ -52,8 +52,8 @@ def bosenova_fcrit(mu: float, mbh: float, n: int = 2) -> float:
    f0 = 2e16 * pow(alpha(mu, mbh)/(0.4*n), 1.5) * np.sqrt( (da0/0.1) * (5.0/c0_n_bose) / n )
    return f0
 
-@njit("boolean(float64, float64, float64, float64, uint8, float64)")
-def not_bosenova_is_problem(mu: float, invf: float, mbh: float, tbh: float, n: int, sr_rate: float) -> bool:
+@njit("boolean(float64, float64, float64, float64, uint8, uint8, float64)")
+def not_bosenova_is_problem(mu: float, invf: float, mbh: float, tbh: float, n: int, m: int, sr_rate: float) -> bool:
    """
    Check if bosenovae do not pose a problem for the parameter constraints.
 
@@ -63,12 +63,13 @@ def not_bosenova_is_problem(mu: float, invf: float, mbh: float, tbh: float, n: i
       mbh (float): Black hole mass in Msol.
       tbh (float): Black hole timescale in yr.
       n (int): Principal quantum number.
+      m (int): Magnetic quantum number
       sr_rate (float): Superradiance rate in eV.
 
    Returns:
       bool: True if bosenovae do not pose a problem for the parameter constraints.
    """
-   nm = n_fin(mbh)
+   nm = n_fin(mbh, m=m)
    nb = n_bose(mu, invf, mbh, n)
    inv_tbh = inv_eVyr/tbh
    res = sr_rate > inv_tbh*np.log(nb)*(nm/nb)
@@ -76,41 +77,24 @@ def not_bosenova_is_problem(mu: float, invf: float, mbh: float, tbh: float, n: i
       res = 0
    return res
 
-def is_box_allowed_bosenova(mu: float, invf: float, bh_data: list[float], states: list[tuple[int,int,int]] = [(ell+1, ell, ell) for ell in range(1,6)], sigma_level: float = 2, sr_function: callable = GammaSR_nlm_nr) -> bool:
+@njit("float64(float64, float64, float64, uint8, uint8)")
+def eta_bn(mu: float, invf: float, mbh: float, n: int = 2, m: int = 1) -> float:
    """
-   Check if a configuration is allowed by superradiance and bosenovae, using the `box method`.
+   Calculates the effective reduction factor in the superradiance rate due to bosenovae.
 
    Parameters:
       mu (float): Boson mass in eV.
       invf (float): Inverse of the boson decay constant in GeV^-1.
-      bh_data (tuple): Black hole data (bh name, tbh, mbh, mbh_err, a, a_err_p, a_err_m).
-      states (list[tuple[int,int,int]]): List of levels \f$|nlm\rangle\f$ (default: all \f$n \leq 5\f$).
-      sigma_level (float): Confidence level for the exclusion (default: 2)
-      sr_function (callable): Superradiance rate function (default: GammaSR_nlm_nr).
+      mbh (float): Black hole mass in Msol.
+      n (int, optional): Principal quantum number (default: 2).
+      m (int, optional): Magnetic quantum number (default: 1).
 
    Returns:
-      bool: True if the configuration is allowed by superradiance and bosenovae.
+      float: Reduction factor in the superradiance rate.
    """
-   _, tbh, mbh, mbh_err_p, mbh_err_m, a, _, a_err_m = bh_data
-   # Coservative approach by choosing the shortest BH time scale
-   mbh_p, mbh_m = mbh+sigma_level*mbh_err_p, max(0, mbh-sigma_level*mbh_err_m)
-   a_m = max(0, a-sigma_level*a_err_m)
-   for mm in np.linspace(mbh_m, mbh_p, 50):
-      sr_checks = []
-      for s in states:
-         n, l, m = s
-         # Check SR condition
-         alph = alpha(mu, mm)
-         if alph/l <= 0.5:
-            srr = sr_function(mu, mm, a_m, n, l, m)
-            check = can_grow_max_cloud(mm, tbh, srr)
-            if invf > 0:
-               check *= not_bosenova_is_problem(mu, invf, mm, tbh, n, srr)
-            sr_checks.append(check)
-      if sum(sr_checks) == 0:
-         return 0
-   return 1
-
+   nm = n_fin(mbh, m=m)
+   nb = n_bose(mu, invf, mbh, n)
+   return nm*np.log(nb)/nb
 
 ### Routines for the equilibrium regime
 
@@ -194,21 +178,7 @@ def GammaSR_nlm_eq(mu: float, mbh: float, astar: float, invf: float, n: int = 2,
       tuple(float): The equilibrium BHSR rate, the corresponding non-interacting rate (in eV).
    """
    if n != 2 or l != 1 or m != 1:
-      raise ValueError("Only the |nlm> = |211> level is currently supported by GammaSR_nlm_eq.")
+      raise ValueError("Only the |nlm> = |211> rate is currently supported for the equilibrium regime and GammaSR_nlm_eq(...).")
    sr0 = sr_function(mu, mbh, astar, n, l, m)
    neq = n_eq_211(mu, mbh, astar, invf, sr0)
    return neq*sr0, sr0
-
-def is_box_allowed_211(mu: float, invf: float, bh_data: list[float], sr_function: callable):
-   mbh_m, mbh_p, a_m, tbh = bh_data
-   inv_tbh = inv_eVs / (yr_in_s*tbh)
-   check = 2
-   for mbh in [mbh_m, mbh_p]:
-      is_sr = alpha(mu, mbh) <= 0.5
-      nfi = n_fin(mbh)
-      srr = sr_function(mu, mbh, a_m, 2, 1, 1)
-      if invf > 0:
-         srr *= n_eq_211(mu, mbh, a_m, invf, srr)
-      if srr > np.log(nfi)*inv_tbh and is_sr:
-         check -= 1
-   return check > 0
