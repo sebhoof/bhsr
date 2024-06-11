@@ -162,6 +162,43 @@ def simple_grid_and_hpd(samples: np.ndarray, xlims: np.ndarray[float], ylims: np
    yi = np.linspace(ylims[0], ylims[1], nbins_grid)
    return x0, y0, pdens, xi, yi, pthresh
 
+def compute_regge_slopes_211(mu: float, mbh_vals: list[float], tbh: float, invf: float = -1, sr_function: callable = GammaSR_nlm_bxzh) -> np.ndarray:
+   """
+   Compute the Regge slopes given a superradiance rate function.
+
+   Parameters:
+      mu (float): Boson mass in eV.
+      mbh_vals (list[float]): List of black hole masses in Msol.
+      sr_function (callable): Superradiance rate function with signature sr_function(mu, mbh, astar)
+      tbh (float): Black hole timescale in yr.
+
+   Returns:
+      np.ndarray: Array of Regge slopes.
+
+   Notes:
+      - The Regge slope is defined as the minimum value of the dimensionless spin parameter 'a' at which the superradiance rate equals the inverse of the superradiance timescale.
+      - Note that the root finding may fail if no Regge slope exists, or the user-defined function may produce an error, e.g. because of large spins or difficult BH masses. In any such case, we set the corresponding BH spin value = NAN.
+   """
+   inv_tbh = inv_eVs / (yr_in_s*tbh)
+   a_min_vals = []
+   for mbh in mbh_vals:
+      nfi = n_fin(mbh)
+      def foo(a, mbh):
+         srr0 = sr_function(mu, mbh, a, 2, 1, 1)
+         is_valid = alpha(mu, mbh) <= 0.5
+         if invf > 0:
+            srr = srr0*n_eq_211(mu, mbh, a, invf, srr0)
+            is_valid *= srr > inv_tbh
+         return is_valid*srr0 - np.log(nfi)*inv_tbh
+      with warnings.catch_warnings(record=True) as w:
+         try:
+            res = root_scalar(foo, bracket=[0.01, 0.99], args=(mbh))
+            a_root = res.root if len(w) == 0 else np.nan
+         except ValueError:
+            a_root = np.nan
+      a_min_vals.append(a_root)
+   return np.array(a_min_vals)
+
 def is_box_allowed_211(mu: float, invf: float, bh_data: list[float], sr_function: callable = GammaSR_nlm_bxzh) -> bool:
    """
    Check if a n ULB model \f$(\mu, f^{-1})\f$ is allowed by superradiance, using the "box method".
@@ -186,10 +223,12 @@ def is_box_allowed_211(mu: float, invf: float, bh_data: list[float], sr_function
    for mbh in [mbh_m, mbh_p]:
       is_sr = alpha(mu, mbh) <= 0.5
       nfi = n_fin(mbh)
-      srr = sr_function(mu, mbh, a_m, 2, 1, 1)
+      srr0 = sr_function(mu, mbh, a_m, 2, 1, 1)
+      srr = srr0
       if invf > 0:
-         srr *= n_eq_211(mu, mbh, a_m, invf, srr)
-      if srr > np.log(nfi)*inv_tbh and is_sr:
+         srr = srr0*n_eq_211(mu, mbh, a_m, invf, srr0)
+         is_sr *= srr > inv_tbh
+      if srr0 > np.log(nfi)*inv_tbh and is_sr:
          points_below_the_regge_trajectory -= 1
    return points_below_the_regge_trajectory > 0
 

@@ -443,32 +443,3 @@ def compute_regge_slopes(mu: float, mbh_vals: list[float], states: list[tuple[in
             temp.append(a_root)
       a_min_vals.append(temp)
    return np.array(a_min_vals)
-
-def compute_regge_slopes_211(mu: float, mbh_vals: list[float], sr_function: callable, inv_tSR: float = inv_tSR) -> np.ndarray:
-   """
-   Compute the Regge slopes given a superradiance rate function.
-
-   Parameters:
-      mu (float): Boson mass in eV.
-      mbh_vals (list[float]): List of black hole masses in Msol.
-      sr_function (callable): Superradiance rate function with signature sr_function(mu, mbh, astar)
-      inv_tSR (float, optional): Inverse of the superradiance timescale (default: inv_tSR).
-
-   Returns:
-      np.ndarray: Array of Regge slopes.
-
-   Notes:
-      - The Regge slope is defined as the minimum value of the dimensionless spin parameter 'a' at which the superradiance rate equals the inverse of the superradiance timescale.
-      - Note that the root finding may fail if no Regge slope exists, or the user-defined function may produce an error, e.g. because of large spins or difficult BH masses. In any such case, we set the corresponding BH spin value = NAN.
-   """
-   a_min_vals = []
-   foo = lambda a, mbh: sr_function(mu, mbh, a) - inv_tSR
-   for mbh in mbh_vals:
-      with warnings.catch_warnings(record=True) as w:
-         try:
-            res = root_scalar(foo, bracket=[0.01, 0.99], args=(mbh))
-            a_root = res.root if len(w) == 0 else np.nan
-         except ValueError:
-            a_root = np.nan
-      a_min_vals.append(a_root)
-   return np.array(a_min_vals)
