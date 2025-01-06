@@ -12,17 +12,17 @@
 
 ## Results
 
-Details on our proposed inference framework, which directly uses black hole mass and spin posterior samples to constrain ultralight bosons, can be found in our preprint [[arXiv:2406.xxxxx]](https://arxiv.org/abs/2405.xxxxx).
+Details on our proposed inference framework, which directly uses black hole mass and spin posterior samples to constrain ultralight bosons, can be found in our preprint [[arXiv:2406.10337]](https://arxiv.org/abs/2406.10337).
 More details to follow after the peer review process.
 
-<!--### Statistical analysis framework
-[![arxiv](https://img.shields.io/badge/arXiv-2406.xxxxx_[hep--ph]-B31B1B.svg?style=flat&logo=arxiv&logoColor=B31B1B)](https://arxiv.org/abs/2406.xxxxx)
-[![mnras](https://img.shields.io/badge/MNRAS-doi:10.xxxxxxxxx-937CB9)](https://doi.org/10.xxxxxxxxx)
--->
+### Statistical analysis framework
+[![arxiv](https://img.shields.io/badge/arXiv-2406.10337_[hep--ph]-B31B1B.svg?style=flat&logo=arxiv&logoColor=B31B1B)](https://arxiv.org/abs/2406.10337)
+<!-- [![mnras](https://img.shields.io/badge/MNRAS-doi:10.xxxxxxxxx-937CB9)](https://doi.org/10.xxxxxxxxx) -->
+
 
 ![Exclusion plot of ULB mass and decay constant from BHSR data](results/website/exclusion_plot.png)
 
-PRELIMINARY. The plot above shows the excluded parameter region for the ULB boson mass _&mu;_ and _f<sup>-1</sup>_ for IRAS 09149-6206 (left panel) and M33 X-7 (right panel).
+**PRELIMINARY.** The plot above shows the excluded parameter region for the ULB boson mass _&mu;_ and _f<sup>-1</sup>_ for IRAS 09149-6206 (left panel) and M33 X-7 (right panel).
 
 ## How to install
 
@@ -45,7 +45,7 @@ We include the Jupyter notebook [examples.ipynb](examples.ipynb) to demonstrate 
 
 ## How to cite
 
-Even if you wish to *only* cite our code, we still ask you to cite [[arXiv:2406.xxxxx]](https://arxiv.org/abs/2405.xxxxx) and to include a link to this Github repo.
+Even if you wish to *only* cite our code, we still ask you to cite [[arXiv:2406.10337]](https://arxiv.org/abs/2406.10337) and to include a link to this Github repo.
 Sadly, code citations are still not widely recognised.
 
 We (re-)distribute posterior samples from various BH data sets.
